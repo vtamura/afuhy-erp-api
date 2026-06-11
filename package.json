@@ -1,0 +1,51 @@
+{
+    "name": "api-fornecedor",
+    "version": "1.0.0",
+    "main": "dist/main/bootstrap/server.js",
+    "scripts": {
+        "dev": "NODE_ENV=development tsx watch src/main/bootstrap/server.ts",
+        "qa": "NODE_ENV=qa tsx watch src/main/bootstrap/server.ts",
+        "build": "tsc -p tsconfig.json",
+        "start": "NODE_ENV=production node dist/main/bootstrap/server.js",
+        "start:dev": "NODE_ENV=development node dist/main/bootstrap/server.js",
+        "start:prod": "NODE_ENV=production node main/bootstrap/server.js",
+        "db:migrate": "NODE_ENV=production sequelize-cli db:migrate",
+        "db:migrate:dev": "NODE_ENV=development sequelize-cli db:migrate",
+        "db:migrate:status": "sequelize-cli db:migrate:status",
+        "db:migrate:undo": "sequelize-cli db:migrate:undo",
+        "db:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
+        "db:migration:generate": "sequelize-cli migration:generate",
+        "db:seed:generate": "sequelize-cli seed:generate",
+        "db:seed:all": "sequelize-cli db:seed:all",
+        "db:seed:undo:all": "sequelize-cli db:seed:undo:all",
+        "typecheck": "tsc --noEmit",
+        "test": "echo \"No tests yet\""
+    },
+    "devDependencies": {
+        "typescript": "^6.0.2"
+    },
+    "dependencies": {
+        "@aws-sdk/client-s3": "^3.1030.0",
+        "@aws-sdk/lib-storage": "^3.1030.0",
+        "@aws-sdk/s3-request-presigner": "^3.1030.0",
+        "bcrypt": "^6.0.0",
+        "cors": "^2.8.6",
+        "date-fns": "^4.1.0",
+        "dotenv": "^17.4.2",
+        "express": "^5.2.1",
+        "i18next": "^26.0.5",
+        "jsonwebtoken": "^9.0.3",
+        "jwt-decode": "^4.0.0",
+        "multer": "^2.1.1",
+        "mysql2": "^3.22.0",
+        "node-cron": "^4.2.1",
+        "nodemailer": "^8.0.5",
+        "oauth": "^0.10.2",
+        "sequelize": "^6.37.8",
+        "sequelize-cli": "^6.6.5",
+        "socket.io": "^4.8.3",
+        "twilio": "^5.13.1",
+        "zod": "^4.3.6",
+        "zod-i18n-map": "^2.27.0"
+    }
+}
