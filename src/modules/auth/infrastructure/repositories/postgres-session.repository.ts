@@ -76,6 +76,22 @@ export class PostgresSessionRepository implements SessionRepository {
         return row ? this.toEntity(row) : null
     }
 
+    async listActiveByUserId(userId: string): Promise<SessionEntity[]> {
+        const rows = await this.databaseClient.select<SessionRow>(
+            `
+                SELECT id, user_id, organization_id, refresh_token_hash, user_agent, ip_address, status, expires_at, created_at
+                FROM sessions
+                WHERE user_id = :userId
+                    AND status = 'ACTIVE'
+                    AND expires_at > NOW()
+                ORDER BY created_at DESC
+            `,
+            { userId },
+        )
+
+        return rows.map((row) => this.toEntity(row))
+    }
+
     async rotateRefreshToken(input: RotateRefreshTokenInput): Promise<void> {
         await this.databaseClient.query(
             `
@@ -109,6 +125,53 @@ export class PostgresSessionRepository implements SessionRepository {
                 WHERE id = :sessionId
             `,
             { sessionId },
+        )
+    }
+
+    async revokeByUser(input: {
+        userId: string
+        sessionId: string
+    }): Promise<boolean> {
+        const rows = await this.databaseClient.query<{ id: string }>(
+            `
+                UPDATE sessions
+                SET status = 'REVOKED'
+                WHERE id = :sessionId
+                    AND user_id = :userId
+                    AND status = 'ACTIVE'
+                RETURNING id
+            `,
+            input,
+        )
+
+        return rows.length > 0
+    }
+
+    async revokeOtherActiveByUser(input: {
+        userId: string
+        currentSessionId: string
+    }): Promise<void> {
+        await this.databaseClient.query(
+            `
+                UPDATE sessions
+                SET status = 'REVOKED'
+                WHERE user_id = :userId
+                    AND id <> :currentSessionId
+                    AND status = 'ACTIVE'
+            `,
+            input,
+        )
+    }
+
+    async revokeAllActiveByUser(userId: string): Promise<void> {
+        await this.databaseClient.query(
+            `
+                UPDATE sessions
+                SET status = 'REVOKED'
+                WHERE user_id = :userId
+                    AND status = 'ACTIVE'
+            `,
+            { userId },
         )
     }
 

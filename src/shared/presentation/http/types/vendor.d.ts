@@ -1,6 +1,7 @@
 declare module 'express' {
     export type AuthUserLike = {
         userId: string
+        sessionId: string
         organizationId?: string | null
     }
 

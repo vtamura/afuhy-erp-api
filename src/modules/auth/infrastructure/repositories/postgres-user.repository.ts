@@ -135,6 +135,22 @@ export class PostgresUserRepository implements UserRepository {
         return row ? this.toEntity(row) : null
     }
 
+    async updatePasswordHash(input: {
+        userId: string
+        passwordHash: string
+    }): Promise<void> {
+        await this.databaseClient.query(
+            `
+                UPDATE users
+                SET password_hash = :passwordHash,
+                    updated_at = NOW()
+                WHERE id = :userId
+                    AND deleted_at IS NULL
+            `,
+            input,
+        )
+    }
+
     async updateInOrganization(
         input: UpdateUserInput & { organizationId: string },
     ): Promise<UserEntity | null> {

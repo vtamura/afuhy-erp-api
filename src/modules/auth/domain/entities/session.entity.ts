@@ -35,6 +35,14 @@ export class SessionEntity {
         return this.props.refreshTokenHash
     }
 
+    get userAgent(): string | null {
+        return this.props.userAgent ?? null
+    }
+
+    get ipAddress(): string | null {
+        return this.props.ipAddress ?? null
+    }
+
     get status(): SessionStatus {
         return this.props.status
     }

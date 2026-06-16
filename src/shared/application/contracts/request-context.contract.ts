@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export const authUserSchema = z.object({
     userId: z.string().uuid(),
+    sessionId: z.string().uuid(),
     organizationId: z.string().uuid().nullable().optional(),
 })
 

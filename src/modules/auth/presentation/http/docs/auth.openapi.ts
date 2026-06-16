@@ -271,6 +271,52 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 },
             },
         },
+        ManagedSession: {
+            type: 'object',
+            required: [
+                'id',
+                'organizationId',
+                'userAgent',
+                'ipAddress',
+                'status',
+                'expiresAt',
+                'createdAt',
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid',
+                },
+                organizationId: {
+                    type: 'string',
+                    format: 'uuid',
+                    nullable: true,
+                },
+                userAgent: {
+                    type: 'string',
+                    nullable: true,
+                    example: 'Mozilla/5.0',
+                },
+                ipAddress: {
+                    type: 'string',
+                    nullable: true,
+                    example: '127.0.0.1',
+                },
+                status: {
+                    type: 'string',
+                    enum: ['ACTIVE', 'REVOKED', 'EXPIRED'],
+                    example: 'ACTIVE',
+                },
+                expiresAt: {
+                    type: 'string',
+                    format: 'date-time',
+                },
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                },
+            },
+        },
         AuthResponse: {
             type: 'object',
             required: ['user', 'session'],
@@ -433,6 +479,56 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 },
             },
         },
+        ChangePasswordInput: {
+            type: 'object',
+            required: ['currentPassword', 'newPassword'],
+            properties: {
+                currentPassword: {
+                    type: 'string',
+                    format: 'password',
+                },
+                newPassword: {
+                    type: 'string',
+                    minLength: 8,
+                    format: 'password',
+                },
+            },
+        },
+        ForgotPasswordInput: {
+            type: 'object',
+            required: ['email'],
+            properties: {
+                email: {
+                    type: 'string',
+                    format: 'email',
+                    example: 'maria@afuhy.com.br',
+                },
+            },
+        },
+        ForgotPasswordDevelopmentResponse: {
+            type: 'object',
+            properties: {
+                resetToken: {
+                    type: 'string',
+                    description:
+                        'Retornado apenas em development quando o usuario existe.',
+                },
+            },
+        },
+        ResetPasswordInput: {
+            type: 'object',
+            required: ['token', 'newPassword'],
+            properties: {
+                token: {
+                    type: 'string',
+                },
+                newPassword: {
+                    type: 'string',
+                    minLength: 8,
+                    format: 'password',
+                },
+            },
+        },
     },
     paths: {
         '/auth/login': {
@@ -504,6 +600,170 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                         description:
                             'Sessao revogada quando possivel e cookies removidos.',
                     },
+                },
+            },
+        },
+        '/auth/sessions': {
+            get: {
+                tags: ['Auth'],
+                summary: 'Lista sessoes ativas do usuario autenticado',
+                description:
+                    'Retorna apenas sessoes ACTIVE ainda nao expiradas do usuario autenticado.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                responses: {
+                    '200': {
+                        description: 'Lista de sessoes ativas.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'array',
+                                    items: {
+                                        $ref: '#/components/schemas/ManagedSession',
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    '401': unauthorizedResponse,
+                },
+            },
+        },
+        '/auth/sessions/{id}': {
+            delete: {
+                tags: ['Auth'],
+                summary: 'Revoga uma sessao do usuario autenticado',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                parameters: [
+                    {
+                        name: 'id',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                ],
+                responses: {
+                    '204': {
+                        description: 'Sessao revogada.',
+                    },
+                    '401': unauthorizedResponse,
+                    '404': notFoundResponse,
+                },
+            },
+        },
+        '/auth/sessions/others': {
+            delete: {
+                tags: ['Auth'],
+                summary: 'Revoga outras sessoes do usuario autenticado',
+                description: 'Preserva a sessao atual.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                responses: {
+                    '204': {
+                        description: 'Outras sessoes revogadas.',
+                    },
+                    '401': unauthorizedResponse,
+                },
+            },
+        },
+        '/auth/change-password': {
+            post: {
+                tags: ['Auth'],
+                summary: 'Troca a senha do usuario autenticado',
+                description:
+                    'Valida a senha atual, troca a senha e revoga todas as outras sessoes.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/ChangePasswordInput',
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    '204': {
+                        description: 'Senha alterada.',
+                    },
+                    '401': unauthorizedResponse,
+                },
+            },
+        },
+        '/auth/forgot-password': {
+            post: {
+                tags: ['Auth'],
+                summary: 'Solicita reset de senha',
+                description:
+                    'Em producao nao revela se o e-mail existe. Em development retorna resetToken quando o usuario existe.',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/ForgotPasswordInput',
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    '200': {
+                        description:
+                            'Token retornado apenas em development quando o usuario existe.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ForgotPasswordDevelopmentResponse',
+                                },
+                            },
+                        },
+                    },
+                    '204': {
+                        description:
+                            'Solicitacao aceita sem revelar existencia do e-mail.',
+                    },
+                },
+            },
+        },
+        '/auth/reset-password': {
+            post: {
+                tags: ['Auth'],
+                summary: 'Redefine senha usando token de reset',
+                description:
+                    'Marca o token como usado e revoga todas as sessoes ativas do usuario.',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/ResetPasswordInput',
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    '204': {
+                        description: 'Senha redefinida.',
+                    },
+                    '401': unauthorizedResponse,
                 },
             },
         },

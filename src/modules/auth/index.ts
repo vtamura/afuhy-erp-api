@@ -1,40 +1,54 @@
 import { getDatabaseClient } from '../../shared/infrastructure/database/sequelize.client'
 import {
     AddOrganizationMemberUseCase,
+    ChangePasswordUseCase,
     CreateOrganizationUseCase,
     CreateUserUseCase,
     DeleteUserUseCase,
+    ForgotPasswordUseCase,
     ListOrganizationMembersUseCase,
     ListOrganizationsUseCase,
+    ListSessionsUseCase,
     ListUsersUseCase,
     LoginUseCase,
     LogoutUseCase,
     RefreshSessionUseCase,
+    ResetPasswordUseCase,
     RemoveOrganizationMemberUseCase,
+    RevokeOtherSessionsUseCase,
+    RevokeSessionUseCase,
     SelectOrganizationUseCase,
     UpdateMemberRolesUseCase,
     UpdateUserUseCase,
 } from './application/use-cases'
 import { PostgresOrganizationRepository } from './infrastructure/repositories/postgres-organization.repository'
 import { PostgresOrganizationUserRepository } from './infrastructure/repositories/postgres-organization-user.repository'
+import { PostgresPasswordResetTokenRepository } from './infrastructure/repositories/postgres-password-reset-token.repository'
 import { PostgresRoleRepository } from './infrastructure/repositories/postgres-role.repository'
 import { PostgresSessionRepository } from './infrastructure/repositories/postgres-session.repository'
 import { PostgresUserRepository } from './infrastructure/repositories/postgres-user.repository'
 import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-hasher'
 import { JwtTokenService } from './infrastructure/security/jwt-token.service'
 import { Sha256RefreshTokenHasher } from './infrastructure/security/sha256-refresh-token-hasher'
+import { SecureTokenGenerator } from './infrastructure/security/secure-token-generator'
 import {
     AddOrganizationMemberController,
+    ChangePasswordController,
     CreateOrganizationController,
     CreateUserController,
     DeleteUserController,
+    ForgotPasswordController,
     ListOrganizationMembersController,
     ListOrganizationsController,
+    ListSessionsController,
     ListUsersController,
     LoginController,
     LogoutController,
     RefreshSessionController,
+    ResetPasswordController,
     RemoveOrganizationMemberController,
+    RevokeOtherSessionsController,
+    RevokeSessionController,
     SelectOrganizationController,
     UpdateMemberRolesController,
     UpdateUserController,
@@ -64,8 +78,11 @@ export function createAuthModule(): AuthModule {
     )
     const roleRepository = new PostgresRoleRepository(databaseClient)
     const sessionRepository = new PostgresSessionRepository(databaseClient)
+    const passwordResetTokenRepository =
+        new PostgresPasswordResetTokenRepository(databaseClient)
     const passwordHasher = new BcryptPasswordHasher()
     const refreshTokenHasher = new Sha256RefreshTokenHasher()
+    const secureTokenGenerator = new SecureTokenGenerator()
     const tokenService = new JwtTokenService()
 
     const createUserUseCase = new CreateUserUseCase(
@@ -103,6 +120,29 @@ export function createAuthModule(): AuthModule {
     const listUsersUseCase = new ListUsersUseCase(userRepository)
     const updateUserUseCase = new UpdateUserUseCase(userRepository)
     const deleteUserUseCase = new DeleteUserUseCase(userRepository)
+    const listSessionsUseCase = new ListSessionsUseCase(sessionRepository)
+    const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepository)
+    const revokeOtherSessionsUseCase = new RevokeOtherSessionsUseCase(
+        sessionRepository,
+    )
+    const changePasswordUseCase = new ChangePasswordUseCase(
+        userRepository,
+        sessionRepository,
+        passwordHasher,
+    )
+    const forgotPasswordUseCase = new ForgotPasswordUseCase(
+        userRepository,
+        passwordResetTokenRepository,
+        refreshTokenHasher,
+        secureTokenGenerator,
+    )
+    const resetPasswordUseCase = new ResetPasswordUseCase(
+        userRepository,
+        sessionRepository,
+        passwordResetTokenRepository,
+        passwordHasher,
+        refreshTokenHasher,
+    )
     const loginUseCase = new LoginUseCase(
         userRepository,
         organizationRepository,
@@ -148,6 +188,24 @@ export function createAuthModule(): AuthModule {
     const listUsersController = new ListUsersController(listUsersUseCase)
     const updateUserController = new UpdateUserController(updateUserUseCase)
     const deleteUserController = new DeleteUserController(deleteUserUseCase)
+    const listSessionsController = new ListSessionsController(
+        listSessionsUseCase,
+    )
+    const revokeSessionController = new RevokeSessionController(
+        revokeSessionUseCase,
+    )
+    const revokeOtherSessionsController = new RevokeOtherSessionsController(
+        revokeOtherSessionsUseCase,
+    )
+    const changePasswordController = new ChangePasswordController(
+        changePasswordUseCase,
+    )
+    const forgotPasswordController = new ForgotPasswordController(
+        forgotPasswordUseCase,
+    )
+    const resetPasswordController = new ResetPasswordController(
+        resetPasswordUseCase,
+    )
     const loginController = new LoginController(loginUseCase)
     const refreshSessionController = new RefreshSessionController(
         refreshSessionUseCase,
@@ -157,7 +215,11 @@ export function createAuthModule(): AuthModule {
     )
     const logoutController = new LogoutController(logoutUseCase)
     const authenticateAccessTokenMiddleware =
-        createAuthenticateAccessTokenMiddleware(userRepository, tokenService)
+        createAuthenticateAccessTokenMiddleware(
+            userRepository,
+            sessionRepository,
+            tokenService,
+        )
     const authorizePermissionMiddleware = createAuthorizePermissionMiddleware(
         organizationUserRepository,
         roleRepository,
@@ -169,6 +231,13 @@ export function createAuthModule(): AuthModule {
             refreshSessionController,
             logoutController,
             selectOrganizationController,
+            listSessionsController,
+            revokeSessionController,
+            revokeOtherSessionsController,
+            changePasswordController,
+            forgotPasswordController,
+            resetPasswordController,
+            authenticateAccessTokenMiddleware,
         }),
         organizationsRouter: createOrganizationsRouter({
             createOrganizationController,

@@ -3,4 +3,5 @@ export type {
     OrganizationMemberResponseDto,
     OrganizationResponseDto,
 } from './organization.response.dto'
+export type { ManagedSessionResponseDto } from './session-management.response.dto'
 export type { UserResponseDto } from './user.response.dto'

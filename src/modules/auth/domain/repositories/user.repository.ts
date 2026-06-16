@@ -28,6 +28,10 @@ export interface UserRepository {
     list(): Promise<UserEntity[]>
     listByOrganization(organizationId: string): Promise<UserEntity[]>
     update(input: UpdateUserInput): Promise<UserEntity | null>
+    updatePasswordHash(input: {
+        userId: string
+        passwordHash: string
+    }): Promise<void>
     updateInOrganization(
         input: UpdateUserInput & { organizationId: string },
     ): Promise<UserEntity | null>
