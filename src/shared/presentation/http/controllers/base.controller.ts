@@ -1,11 +1,23 @@
 import type { Request, RequestHandler } from 'express'
 import { ZodError, type ZodTypeAny, z } from 'zod'
 import { BaseError } from '../../../domain/errors'
-import { createLogger, serializeError } from '../../../infrastructure/logger/logger'
+import {
+    createLogger,
+    serializeError,
+} from '../../../infrastructure/logger/logger'
 
 type HttpResponse<TBody = unknown> = {
     statusCode: number
     body?: TBody
+    cookies?: Array<{
+        name: string
+        value: string
+        options?: Record<string, unknown>
+    }>
+    clearCookies?: Array<{
+        name: string
+        options?: Record<string, unknown>
+    }>
 }
 
 export type ControllerInput<TSchema extends ZodTypeAny> = z.infer<TSchema>
@@ -40,6 +52,14 @@ export abstract class BaseController<
             }
 
             if (this.isHttpResponse(output)) {
+                output.clearCookies?.forEach((cookie) => {
+                    res.clearCookie(cookie.name, cookie.options)
+                })
+
+                output.cookies?.forEach((cookie) => {
+                    res.cookie(cookie.name, cookie.value, cookie.options)
+                })
+
                 if (output.body === undefined) {
                     return res.status(output.statusCode).send()
                 }
@@ -95,7 +115,7 @@ export abstract class BaseController<
             params: req.params,
             query: req.query,
             body: req.body,
-            files: req.files,
+            cookies: req.cookies,
             headers: req.headers,
             authUser: req.authUser,
             attributes: req.attributes,
@@ -103,7 +123,9 @@ export abstract class BaseController<
         }
     }
 
-    private extractAttributeExpression(attributes?: unknown[]): string | undefined {
+    private extractAttributeExpression(
+        attributes?: unknown[],
+    ): string | undefined {
         if (!Array.isArray(attributes) || !attributes.length) {
             return undefined
         }

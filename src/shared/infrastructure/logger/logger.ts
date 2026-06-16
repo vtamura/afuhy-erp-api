@@ -11,7 +11,7 @@ const LOG_LEVEL_WEIGHT: Record<LogLevel, number> = {
 }
 
 type LoggerContext = Record<string, unknown>
-const DEFAULT_LOG_PATH = path.resolve(__dirname, '../../../../../default.log')
+const DEFAULT_LOG_PATH = path.resolve(__dirname, '../../../../default.log')
 
 function parseLogLevel(value: string | undefined): LogLevel {
     if (!value) {

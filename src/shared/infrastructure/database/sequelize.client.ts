@@ -11,19 +11,25 @@ export type MutationResult = {
 }
 
 export interface DatabaseClient {
+    query<T extends object>(
+        query: string,
+        replacements?: QueryReplacements,
+    ): Promise<T[]>
     select<T extends object>(
         query: string,
-        replacements?: QueryReplacements
+        replacements?: QueryReplacements,
     ): Promise<T[]>
     insert(
         query: string,
-        replacements?: QueryReplacements
+        replacements?: QueryReplacements,
     ): Promise<MutationResult>
     update(
         query: string,
-        replacements?: QueryReplacements
+        replacements?: QueryReplacements,
     ): Promise<MutationResult>
-    transaction<T>(callback: (databaseClient: DatabaseClient) => Promise<T>): Promise<T>
+    transaction<T>(
+        callback: (databaseClient: DatabaseClient) => Promise<T>,
+    ): Promise<T>
 }
 
 type MutationMetadata = {
@@ -52,12 +58,24 @@ export function getSequelizeClient(): Sequelize {
 class SequelizeDatabaseClient implements DatabaseClient {
     constructor(
         private readonly sequelizeClient: Sequelize,
-        private readonly transactionContext?: Transaction
+        private readonly transactionContext?: Transaction,
     ) {}
+
+    async query<T extends object>(
+        query: string,
+        replacements?: QueryReplacements,
+    ): Promise<T[]> {
+        const [rows] = await this.sequelizeClient.query(query, {
+            replacements,
+            transaction: this.transactionContext,
+        })
+
+        return rows as T[]
+    }
 
     async select<T extends object>(
         query: string,
-        replacements?: QueryReplacements
+        replacements?: QueryReplacements,
     ): Promise<T[]> {
         const rows = await this.sequelizeClient.query(query, {
             replacements,
@@ -70,7 +88,7 @@ class SequelizeDatabaseClient implements DatabaseClient {
 
     async insert(
         query: string,
-        replacements?: QueryReplacements
+        replacements?: QueryReplacements,
     ): Promise<MutationResult> {
         const [result, metadata] = await this.sequelizeClient.query(query, {
             replacements,
@@ -85,7 +103,7 @@ class SequelizeDatabaseClient implements DatabaseClient {
 
     async update(
         query: string,
-        replacements?: QueryReplacements
+        replacements?: QueryReplacements,
     ): Promise<MutationResult> {
         const [result, metadata] = await this.sequelizeClient.query(query, {
             replacements,
@@ -97,13 +115,13 @@ class SequelizeDatabaseClient implements DatabaseClient {
 
     private extractMutationResult(
         result: unknown,
-        metadata: unknown
+        metadata: unknown,
     ): MutationResult {
         const insertId = this.extractNumberField(result, metadata, 'insertId')
         const affectedRows = this.extractNumberField(
             result,
             metadata,
-            'affectedRows'
+            'affectedRows',
         )
 
         return {
@@ -113,22 +131,19 @@ class SequelizeDatabaseClient implements DatabaseClient {
     }
 
     async transaction<T>(
-        callback: (databaseClient: DatabaseClient) => Promise<T>
+        callback: (databaseClient: DatabaseClient) => Promise<T>,
     ): Promise<T> {
         return this.sequelizeClient.transaction(async (transaction) =>
             callback(
-                new SequelizeDatabaseClient(
-                    this.sequelizeClient,
-                    transaction
-                )
-            )
+                new SequelizeDatabaseClient(this.sequelizeClient, transaction),
+            ),
         )
     }
 
     private extractNumberField(
         result: unknown,
         metadata: unknown,
-        field: keyof MutationMetadata
+        field: keyof MutationMetadata,
     ): number | undefined {
         if (typeof metadata === 'number') {
             return metadata
@@ -145,7 +160,7 @@ class SequelizeDatabaseClient implements DatabaseClient {
 
     private readNumericField(
         candidate: unknown,
-        field: keyof MutationMetadata
+        field: keyof MutationMetadata,
     ): number | undefined {
         if (!candidate || typeof candidate !== 'object') {
             return undefined

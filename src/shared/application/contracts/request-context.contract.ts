@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
 export const authUserSchema = z.object({
-  userId: z.coerce.number().int().positive(),
-  companyId: z.string().optional(),
+    userId: z.string().uuid(),
+    organizationId: z.string().uuid().nullable().optional(),
 })
 
 export type AuthUser = z.infer<typeof authUserSchema>

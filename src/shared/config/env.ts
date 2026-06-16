@@ -13,30 +13,42 @@ dotenv.config({
     override: true,
 })
 
+function emptyStringToUndefined(value: unknown): unknown {
+    return typeof value === 'string' && value.trim() === '' ? undefined : value
+}
+
 const envSchema = z.object({
     NODE_ENV: z
         .enum(['development', 'qa', 'test', 'production'])
         .default('development'),
     LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('error'),
     PORT: z.coerce.number().int().positive().default(3000),
-    API_PREFIX: z.string().default('/api/v2'),
-    API_ACCESS: z.string().optional(),
-    DB_DIALECT: z.enum(['mysql']).default('mysql'),
+    API_PREFIX: z.string().default('/api'),
+    CORS_ORIGIN: z.string().default('http://localhost:3000'),
+    DB_DIALECT: z.enum(['postgres']).default('postgres'),
     DB_HOST: z.string().default('127.0.0.1'),
-    DB_PORT: z.coerce.number().int().positive().default(3306),
-    DB_USER: z.string().default('root'),
-    DB_PASSWORD: z.string().default('root'),
-    DB_NAME: z.string().default('qa_solutions'),
-    DB_BACCESS_SCHEMA: z.string().default('baccess'),
-    AWS_REGION: z.string().default('sa-east-1'),
-    AWS_ACCESS_KEY_ID: z.string().optional(),
-    AWS_SECRET_ACCESS_KEY: z.string().optional(),
-    AWS_S3_BUCKET_ATTACHMENTS: z.string().optional(),
-    AWS_S3_DOWNLOAD_URL_EXPIRES_IN: z.coerce
-        .number()
-        .int()
-        .positive()
-        .default(900),
+    DB_PORT: z.coerce.number().int().positive().default(5432),
+    DB_USER: z.string().default('postgres'),
+    DB_PASSWORD: z.string().default('postgres'),
+    DB_NAME: z.string().default('afuhy'),
+    ACCESS_TOKEN_SECRET: z.preprocess(
+        emptyStringToUndefined,
+        z.string().default('change-me-access-token-secret'),
+    ),
+    ACCESS_TOKEN_EXPIRES_IN: z.string().default('15m'),
+    REFRESH_TOKEN_SECRET: z.preprocess(
+        emptyStringToUndefined,
+        z.string().default('change-me-refresh-token-secret'),
+    ),
+    REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
+    AUTH_COOKIE_DOMAIN: z.preprocess(
+        emptyStringToUndefined,
+        z.string().optional(),
+    ),
+    AUTH_COOKIE_SECURE: z
+        .union([z.literal('true'), z.literal('false')])
+        .default('false')
+        .transform((value) => value === 'true'),
     DB_LOG_SQL: z
         .union([z.literal('true'), z.literal('false')])
         .default('false')

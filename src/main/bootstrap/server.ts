@@ -1,7 +1,10 @@
 import { createHttpDependencies } from '../container/container'
 import { createApp } from '../http/create-app'
 import { env } from '../../shared/config/env'
-import { createLogger, serializeError } from '../../shared/infrastructure/logger/logger'
+import {
+    createLogger,
+    serializeError,
+} from '../../shared/infrastructure/logger/logger'
 
 const logger = createLogger({ component: 'bootstrap' })
 

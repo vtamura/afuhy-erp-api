@@ -13,12 +13,12 @@ dotenv.config({
 })
 
 const baseConfig = {
-    username: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'root',
-    database: process.env.DB_NAME || 'qa_solutions',
+    username: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'postgres',
+    database: process.env.DB_NAME || 'afuhy',
     host: process.env.DB_HOST || '127.0.0.1',
-    port: Number(process.env.DB_PORT || 3306),
-    dialect: process.env.DB_DIALECT || 'mysql',
+    port: Number(process.env.DB_PORT || 5432),
+    dialect: process.env.DB_DIALECT || 'postgres',
     logging: process.env.DB_LOG_SQL === 'true' ? console.log : false,
     migrationStorage: 'sequelize',
     migrationStorageTableName: 'sequelize_meta',
