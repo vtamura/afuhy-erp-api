@@ -14,5 +14,11 @@ export type OrganizationMemberResponseDto = {
     name: string
     email: string
     status: string
+    roles: Array<{
+        id: string
+        code: string
+        name: string
+        isSystem: boolean
+    }>
     createdAt: string
 }

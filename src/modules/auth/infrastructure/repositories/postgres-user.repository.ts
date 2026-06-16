@@ -66,6 +66,28 @@ export class PostgresUserRepository implements UserRepository {
         return row ? this.toEntity(row) : null
     }
 
+    async findByIdInOrganization(input: {
+        id: string
+        organizationId: string
+    }): Promise<UserEntity | null> {
+        const [row] = await this.databaseClient.select<UserRow>(
+            `
+                SELECT u.id, u.name, u.email, u.password_hash, u.status, u.created_at, u.updated_at, u.deleted_at
+                FROM users u
+                INNER JOIN organization_users ou
+                    ON ou.user_id = u.id
+                    AND ou.organization_id = :organizationId
+                    AND ou.status = 'ACTIVE'
+                WHERE u.id = :id
+                    AND u.deleted_at IS NULL
+                LIMIT 1
+            `,
+            input,
+        )
+
+        return row ? this.toEntity(row) : null
+    }
+
     async list(): Promise<UserEntity[]> {
         const rows = await this.databaseClient.select<UserRow>(`
             SELECT id, name, email, password_hash, status, created_at, updated_at, deleted_at
@@ -73,6 +95,24 @@ export class PostgresUserRepository implements UserRepository {
             WHERE deleted_at IS NULL
             ORDER BY created_at DESC
         `)
+
+        return rows.map((row) => this.toEntity(row))
+    }
+
+    async listByOrganization(organizationId: string): Promise<UserEntity[]> {
+        const rows = await this.databaseClient.select<UserRow>(
+            `
+                SELECT u.id, u.name, u.email, u.password_hash, u.status, u.created_at, u.updated_at, u.deleted_at
+                FROM organization_users ou
+                INNER JOIN users u
+                    ON u.id = ou.user_id
+                    AND u.deleted_at IS NULL
+                WHERE ou.organization_id = :organizationId
+                    AND ou.status = 'ACTIVE'
+                ORDER BY u.name ASC
+            `,
+            { organizationId },
+        )
 
         return rows.map((row) => this.toEntity(row))
     }
@@ -87,6 +127,33 @@ export class PostgresUserRepository implements UserRepository {
                     updated_at = NOW()
                 WHERE id = :id
                     AND deleted_at IS NULL
+                RETURNING id, name, email, password_hash, status, created_at, updated_at, deleted_at
+            `,
+            input,
+        )
+
+        return row ? this.toEntity(row) : null
+    }
+
+    async updateInOrganization(
+        input: UpdateUserInput & { organizationId: string },
+    ): Promise<UserEntity | null> {
+        const [row] = await this.databaseClient.query<UserRow>(
+            `
+                UPDATE users
+                SET name = :name,
+                    email = :email,
+                    status = :status,
+                    updated_at = NOW()
+                WHERE id = :id
+                    AND deleted_at IS NULL
+                    AND EXISTS (
+                        SELECT 1
+                        FROM organization_users ou
+                        WHERE ou.user_id = users.id
+                            AND ou.organization_id = :organizationId
+                            AND ou.status = 'ACTIVE'
+                    )
                 RETURNING id, name, email, password_hash, status, created_at, updated_at, deleted_at
             `,
             input,
@@ -121,6 +188,48 @@ export class PostgresUserRepository implements UserRepository {
                         AND status = 'ACTIVE'
                 `,
                 { id },
+            )
+
+            return true
+        })
+    }
+
+    async softDeleteInOrganization(input: {
+        id: string
+        organizationId: string
+    }): Promise<boolean> {
+        return this.databaseClient.transaction(async (databaseClient) => {
+            const deletedRows = await databaseClient.query<{ id: string }>(
+                `
+                    UPDATE users
+                    SET deleted_at = NOW(),
+                        updated_at = NOW()
+                    WHERE id = :id
+                        AND deleted_at IS NULL
+                        AND EXISTS (
+                            SELECT 1
+                            FROM organization_users ou
+                            WHERE ou.user_id = users.id
+                                AND ou.organization_id = :organizationId
+                                AND ou.status = 'ACTIVE'
+                        )
+                    RETURNING id
+                `,
+                input,
+            )
+
+            if (!deletedRows.length) {
+                return false
+            }
+
+            await databaseClient.query(
+                `
+                    UPDATE sessions
+                    SET status = 'REVOKED'
+                    WHERE user_id = :id
+                        AND status = 'ACTIVE'
+                `,
+                { id: input.id },
             )
 
             return true

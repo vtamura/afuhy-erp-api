@@ -2,6 +2,7 @@ import {
     BaseController,
     type ControllerInput,
 } from '../../../../../shared/presentation/http/controllers'
+import { ForbiddenError } from '../../../../../shared/domain/errors'
 import { updateUserSchema } from '../../../application/contracts'
 import type { UserResponseDto } from '../../../application/dto'
 import type { UpdateUserUseCase } from '../../../application/use-cases'
@@ -19,6 +20,16 @@ export class UpdateUserController extends BaseController<
     protected execute(
         input: ControllerInput<typeof updateUserSchema>,
     ): Promise<UserResponseDto> {
-        return this.updateUserUseCase.execute(input)
+        if (!input.authUser.organizationId) {
+            throw new ForbiddenError('Organizacao nao selecionada')
+        }
+
+        return this.updateUserUseCase.execute({
+            id: input.id,
+            name: input.name,
+            email: input.email,
+            status: input.status,
+            organizationId: input.authUser.organizationId,
+        })
     }
 }

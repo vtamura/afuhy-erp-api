@@ -1,15 +1,14 @@
 import { z } from 'zod'
 import { authUserSchema } from '../../../../shared/application/contracts'
 
-export const updateUserSchema = z.object({
+export const addOrganizationMemberSchema = z.object({
     id: z.string().uuid(),
-    name: z.string().trim().min(1).max(150),
     email: z
         .string()
         .trim()
         .email()
         .max(180)
         .transform((value) => value.toLowerCase()),
-    status: z.enum(['ACTIVE', 'INACTIVE', 'BLOCKED']),
+    roleCodes: z.array(z.string().trim().min(1).max(100)).min(1),
     authUser: authUserSchema,
 })

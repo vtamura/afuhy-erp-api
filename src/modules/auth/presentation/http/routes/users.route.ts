@@ -1,4 +1,5 @@
 import { Router, type RequestHandler } from 'express'
+import { AUTH_PERMISSIONS } from '../../../domain/rbac/default-rbac'
 import type {
     CreateUserController,
     DeleteUserController,
@@ -12,6 +13,7 @@ type CreateUsersRouterParams = {
     updateUserController: UpdateUserController
     deleteUserController: DeleteUserController
     authenticateAccessTokenMiddleware: RequestHandler
+    authorizePermissionMiddleware: (permissionCode: string) => RequestHandler
 }
 
 export function createUsersRouter({
@@ -20,6 +22,7 @@ export function createUsersRouter({
     updateUserController,
     deleteUserController,
     authenticateAccessTokenMiddleware,
+    authorizePermissionMiddleware,
 }: CreateUsersRouterParams): Router {
     const router = Router()
 
@@ -27,16 +30,19 @@ export function createUsersRouter({
     router.get(
         '/users',
         authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.USERS_READ),
         listUsersController.handle,
     )
     router.patch(
         '/users/:id',
         authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.USERS_UPDATE),
         updateUserController.handle,
     )
     router.delete(
         '/users/:id',
         authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.USERS_DELETE),
         deleteUserController.handle,
     )
 

@@ -5,8 +5,9 @@ import { toUserResponseDto } from '../mappers/user-response.mapper'
 export class ListUsersUseCase {
     constructor(private readonly userRepository: UserRepository) {}
 
-    async execute(): Promise<UserResponseDto[]> {
-        const users = await this.userRepository.list()
+    async execute(organizationId: string): Promise<UserResponseDto[]> {
+        const users =
+            await this.userRepository.listByOrganization(organizationId)
         return users.map(toUserResponseDto)
     }
 }

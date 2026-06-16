@@ -43,6 +43,10 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
             name: 'Users',
             description: 'Criacao e listagem de usuarios.',
         },
+        {
+            name: 'Organizations',
+            description: 'Organizacoes, membros e contexto multiempresa.',
+        },
     ],
     schemas: {
         ErrorResponse: {
@@ -159,6 +163,7 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 'name',
                 'email',
                 'status',
+                'roles',
                 'createdAt',
             ],
             properties: {
@@ -184,9 +189,66 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                     enum: ['ACTIVE', 'INACTIVE'],
                     example: 'ACTIVE',
                 },
+                roles: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/Role',
+                    },
+                },
                 createdAt: {
                     type: 'string',
                     format: 'date-time',
+                },
+            },
+        },
+        Permission: {
+            type: 'object',
+            required: ['code'],
+            properties: {
+                code: {
+                    type: 'string',
+                    example: 'settings.users.read',
+                },
+                description: {
+                    type: 'string',
+                    nullable: true,
+                    example: 'Visualizar usuarios da organizacao',
+                },
+            },
+        },
+        Role: {
+            type: 'object',
+            required: ['id', 'name', 'code', 'isSystem'],
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid',
+                },
+                name: {
+                    type: 'string',
+                    example: 'Administrador',
+                },
+                code: {
+                    type: 'string',
+                    enum: ['ADMIN', 'HR', 'FINANCIAL', 'VIEWER'],
+                    example: 'ADMIN',
+                },
+                isSystem: {
+                    type: 'boolean',
+                    example: false,
+                },
+            },
+        },
+        UserRole: {
+            type: 'object',
+            required: ['organizationUserId', 'role'],
+            properties: {
+                organizationUserId: {
+                    type: 'string',
+                    format: 'uuid',
+                },
+                role: {
+                    $ref: '#/components/schemas/Role',
                 },
             },
         },
@@ -294,6 +356,41 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 organizationId: {
                     type: 'string',
                     format: 'uuid',
+                },
+            },
+        },
+        AddOrganizationMemberInput: {
+            type: 'object',
+            required: ['email', 'roleCodes'],
+            properties: {
+                email: {
+                    type: 'string',
+                    format: 'email',
+                    example: 'membro@afuhy.com.br',
+                },
+                roleCodes: {
+                    type: 'array',
+                    minItems: 1,
+                    items: {
+                        type: 'string',
+                        enum: ['ADMIN', 'HR', 'FINANCIAL', 'VIEWER'],
+                    },
+                    example: ['VIEWER'],
+                },
+            },
+        },
+        UpdateMemberRolesInput: {
+            type: 'object',
+            required: ['roleCodes'],
+            properties: {
+                roleCodes: {
+                    type: 'array',
+                    minItems: 1,
+                    items: {
+                        type: 'string',
+                        enum: ['ADMIN', 'HR', 'FINANCIAL', 'VIEWER'],
+                    },
+                    example: ['HR'],
                 },
             },
         },
@@ -450,10 +547,10 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
         },
         '/organizations': {
             post: {
-                tags: ['Users'],
+                tags: ['Organizations'],
                 summary: 'Cria uma organizacao',
                 description:
-                    'Cria a organizacao, vincula o usuario autenticado e atribui a role ADMIN inicial.',
+                    'Cria a organizacao, vincula o usuario autenticado, cria roles padrao e atribui a role ADMIN inicial. Exige apenas usuario autenticado.',
                 security: [
                     {
                         accessTokenCookie: [],
@@ -494,8 +591,10 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 },
             },
             get: {
-                tags: ['Users'],
+                tags: ['Organizations'],
                 summary: 'Lista organizacoes do usuario autenticado',
+                description:
+                    'Nao exige organizacao selecionada; lista organizacoes ativas vinculadas ao usuario autenticado.',
                 security: [
                     {
                         accessTokenCookie: [],
@@ -521,8 +620,10 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
         },
         '/organizations/{id}/members': {
             get: {
-                tags: ['Users'],
+                tags: ['Organizations'],
                 summary: 'Lista membros ativos de uma organizacao',
+                description:
+                    'Exige organizacao selecionada correspondente a rota, vinculo ativo e permissao settings.members.read.',
                 security: [
                     {
                         accessTokenCookie: [],
@@ -552,6 +653,162 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                                 },
                             },
                         },
+                    },
+                    '401': unauthorizedResponse,
+                    '403': forbiddenResponse,
+                    '404': notFoundResponse,
+                },
+            },
+            post: {
+                tags: ['Organizations'],
+                summary: 'Adiciona membro a uma organizacao',
+                description:
+                    'Adiciona um usuario global existente ou reativa um vinculo inativo. Exige permissao settings.members.manage.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                parameters: [
+                    {
+                        name: 'id',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/AddOrganizationMemberInput',
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    '201': {
+                        description: 'Membro adicionado.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/OrganizationMember',
+                                },
+                            },
+                        },
+                    },
+                    '401': unauthorizedResponse,
+                    '403': forbiddenResponse,
+                    '404': notFoundResponse,
+                    '409': {
+                        description: 'Usuario ja e membro ativo.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ErrorResponse',
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        '/organizations/{id}/members/{organizationUserId}/roles': {
+            put: {
+                tags: ['Organizations'],
+                summary: 'Atualiza roles de um membro',
+                description:
+                    'Substitui o conjunto completo de roles do membro. Exige permissao settings.members.manage e preserva ao menos um ADMIN ativo.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                parameters: [
+                    {
+                        name: 'id',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                    {
+                        name: 'organizationUserId',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/UpdateMemberRolesInput',
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    '200': {
+                        description: 'Roles atualizadas.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/OrganizationMember',
+                                },
+                            },
+                        },
+                    },
+                    '401': unauthorizedResponse,
+                    '403': forbiddenResponse,
+                    '404': notFoundResponse,
+                },
+            },
+        },
+        '/organizations/{id}/members/{organizationUserId}': {
+            delete: {
+                tags: ['Organizations'],
+                summary: 'Remove membro de uma organizacao',
+                description:
+                    'Desativa o vinculo do membro com a organizacao. Exige permissao settings.members.manage e preserva ao menos um ADMIN ativo.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                parameters: [
+                    {
+                        name: 'id',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                    {
+                        name: 'organizationUserId',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                ],
+                responses: {
+                    '204': {
+                        description: 'Membro removido da organizacao.',
                     },
                     '401': unauthorizedResponse,
                     '403': forbiddenResponse,
@@ -601,7 +858,8 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
             get: {
                 tags: ['Users'],
                 summary: 'Lista usuarios',
-                description: 'Lista apenas usuarios nao deletados.',
+                description:
+                    'Lista apenas usuarios nao deletados vinculados a organizacao selecionada. Exige permissao settings.users.read.',
                 security: [
                     {
                         accessTokenCookie: [],
@@ -629,6 +887,8 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
             patch: {
                 tags: ['Users'],
                 summary: 'Edita um usuario',
+                description:
+                    'Edita apenas usuarios vinculados a organizacao selecionada. Exige permissao settings.users.update.',
                 security: [
                     {
                         accessTokenCookie: [],
@@ -684,7 +944,7 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 tags: ['Users'],
                 summary: 'Deleta logicamente um usuario',
                 description:
-                    'Preenche deletedAt, revoga sessoes ativas do usuario deletado e bloqueia autoexclusao.',
+                    'Preenche deletedAt, revoga sessoes ativas do usuario deletado e bloqueia autoexclusao. Exige permissao settings.users.delete.',
                 security: [
                     {
                         accessTokenCookie: [],

@@ -1,5 +1,6 @@
 import { ConflictError } from '../../../../shared/domain/errors'
 import type { OrganizationDocumentType } from '../../domain/entities/organization.entity'
+import { DEFAULT_ORGANIZATION_ROLES } from '../../domain/rbac/default-rbac'
 import type { OrganizationRepository } from '../../domain/repositories/organization.repository'
 import type { OrganizationUserRepository } from '../../domain/repositories/organization-user.repository'
 import type { RoleRepository } from '../../domain/repositories/role.repository'
@@ -12,8 +13,6 @@ type CreateOrganizationUseCaseInput = {
     documentType: OrganizationDocumentType
     userId: string
 }
-
-const ADMIN_ROLE_CODE = 'ADMIN'
 
 export class CreateOrganizationUseCase {
     constructor(
@@ -41,16 +40,24 @@ export class CreateOrganizationUseCase {
             organizationId: organization.id,
             userId: input.userId,
         })
+        const roles = await this.roleRepository.ensureDefaultOrganizationRoles(
+            DEFAULT_ORGANIZATION_ROLES.map((role) => ({
+                organizationId: organization.id,
+                code: role.code,
+                name: role.name,
+                permissionCodes: role.permissions,
+            })),
+        )
         const adminRole =
+            roles.find((role) => role.code === 'ADMIN') ??
             (await this.roleRepository.findByOrganizationAndCode({
                 organizationId: organization.id,
-                code: ADMIN_ROLE_CODE,
-            })) ??
-            (await this.roleRepository.createOrganizationRole({
-                organizationId: organization.id,
-                name: 'Administrador',
-                code: ADMIN_ROLE_CODE,
+                code: 'ADMIN',
             }))
+
+        if (!adminRole) {
+            throw new Error('Admin role could not be ensured')
+        }
 
         await this.roleRepository.assignRoleToOrganizationUser({
             organizationUserId: organizationUser.id,

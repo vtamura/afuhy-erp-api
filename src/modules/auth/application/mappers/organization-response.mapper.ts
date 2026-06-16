@@ -28,6 +28,7 @@ export function toOrganizationMemberResponseDto(
         name: member.name,
         email: member.email,
         status: member.status,
+        roles: member.roles,
         createdAt: member.createdAt.toISOString(),
     }
 }

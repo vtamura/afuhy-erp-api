@@ -9,13 +9,17 @@ type UpdateUserUseCaseInput = {
     name: string
     email: string
     status: UserStatus
+    organizationId: string
 }
 
 export class UpdateUserUseCase {
     constructor(private readonly userRepository: UserRepository) {}
 
     async execute(input: UpdateUserUseCaseInput): Promise<UserResponseDto> {
-        const user = await this.userRepository.findById(input.id)
+        const user = await this.userRepository.findByIdInOrganization({
+            id: input.id,
+            organizationId: input.organizationId,
+        })
 
         if (!user) {
             throw new NotFoundError('Usuario nao encontrado')
@@ -27,7 +31,8 @@ export class UpdateUserUseCase {
             throw new ConflictError('E-mail ja cadastrado')
         }
 
-        const updatedUser = await this.userRepository.update(input)
+        const updatedUser =
+            await this.userRepository.updateInOrganization(input)
 
         if (!updatedUser) {
             throw new NotFoundError('Usuario nao encontrado')

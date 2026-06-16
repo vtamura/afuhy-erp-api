@@ -4,6 +4,7 @@ import type { UserRepository } from '../../domain/repositories/user.repository'
 type DeleteUserUseCaseInput = {
     id: string
     authenticatedUserId: string
+    organizationId: string
 }
 
 export class DeleteUserUseCase {
@@ -16,13 +17,19 @@ export class DeleteUserUseCase {
             )
         }
 
-        const user = await this.userRepository.findById(input.id)
+        const user = await this.userRepository.findByIdInOrganization({
+            id: input.id,
+            organizationId: input.organizationId,
+        })
 
         if (!user) {
             throw new NotFoundError('Usuario nao encontrado')
         }
 
-        const deleted = await this.userRepository.softDelete(input.id)
+        const deleted = await this.userRepository.softDeleteInOrganization({
+            id: input.id,
+            organizationId: input.organizationId,
+        })
 
         if (!deleted) {
             throw new NotFoundError('Usuario nao encontrado')

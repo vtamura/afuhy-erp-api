@@ -1,5 +1,6 @@
 import { getDatabaseClient } from '../../shared/infrastructure/database/sequelize.client'
 import {
+    AddOrganizationMemberUseCase,
     CreateOrganizationUseCase,
     CreateUserUseCase,
     DeleteUserUseCase,
@@ -9,7 +10,9 @@ import {
     LoginUseCase,
     LogoutUseCase,
     RefreshSessionUseCase,
+    RemoveOrganizationMemberUseCase,
     SelectOrganizationUseCase,
+    UpdateMemberRolesUseCase,
     UpdateUserUseCase,
 } from './application/use-cases'
 import { PostgresOrganizationRepository } from './infrastructure/repositories/postgres-organization.repository'
@@ -21,6 +24,7 @@ import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-
 import { JwtTokenService } from './infrastructure/security/jwt-token.service'
 import { Sha256RefreshTokenHasher } from './infrastructure/security/sha256-refresh-token-hasher'
 import {
+    AddOrganizationMemberController,
     CreateOrganizationController,
     CreateUserController,
     DeleteUserController,
@@ -30,10 +34,13 @@ import {
     LoginController,
     LogoutController,
     RefreshSessionController,
+    RemoveOrganizationMemberController,
     SelectOrganizationController,
+    UpdateMemberRolesController,
     UpdateUserController,
 } from './presentation/http/controllers'
 import { createAuthenticateAccessTokenMiddleware } from './presentation/http/middlewares/authenticate-access-token.middleware'
+import { createAuthorizePermissionMiddleware } from './presentation/http/middlewares/authorize-permission.middleware'
 import {
     createAuthRouter,
     createOrganizationsRouter,
@@ -77,6 +84,22 @@ export function createAuthModule(): AuthModule {
         organizationRepository,
         organizationUserRepository,
     )
+    const addOrganizationMemberUseCase = new AddOrganizationMemberUseCase(
+        organizationRepository,
+        organizationUserRepository,
+        roleRepository,
+        userRepository,
+    )
+    const updateMemberRolesUseCase = new UpdateMemberRolesUseCase(
+        organizationRepository,
+        organizationUserRepository,
+        roleRepository,
+    )
+    const removeOrganizationMemberUseCase = new RemoveOrganizationMemberUseCase(
+        organizationRepository,
+        organizationUserRepository,
+        roleRepository,
+    )
     const listUsersUseCase = new ListUsersUseCase(userRepository)
     const updateUserUseCase = new UpdateUserUseCase(userRepository)
     const deleteUserUseCase = new DeleteUserUseCase(userRepository)
@@ -114,6 +137,14 @@ export function createAuthModule(): AuthModule {
     )
     const listOrganizationMembersController =
         new ListOrganizationMembersController(listOrganizationMembersUseCase)
+    const addOrganizationMemberController = new AddOrganizationMemberController(
+        addOrganizationMemberUseCase,
+    )
+    const updateMemberRolesController = new UpdateMemberRolesController(
+        updateMemberRolesUseCase,
+    )
+    const removeOrganizationMemberController =
+        new RemoveOrganizationMemberController(removeOrganizationMemberUseCase)
     const listUsersController = new ListUsersController(listUsersUseCase)
     const updateUserController = new UpdateUserController(updateUserUseCase)
     const deleteUserController = new DeleteUserController(deleteUserUseCase)
@@ -127,6 +158,10 @@ export function createAuthModule(): AuthModule {
     const logoutController = new LogoutController(logoutUseCase)
     const authenticateAccessTokenMiddleware =
         createAuthenticateAccessTokenMiddleware(userRepository, tokenService)
+    const authorizePermissionMiddleware = createAuthorizePermissionMiddleware(
+        organizationUserRepository,
+        roleRepository,
+    )
 
     return {
         authRouter: createAuthRouter({
@@ -139,7 +174,11 @@ export function createAuthModule(): AuthModule {
             createOrganizationController,
             listOrganizationsController,
             listOrganizationMembersController,
+            addOrganizationMemberController,
+            updateMemberRolesController,
+            removeOrganizationMemberController,
             authenticateAccessTokenMiddleware,
+            authorizePermissionMiddleware,
         }),
         usersRouter: createUsersRouter({
             createUserController,
@@ -147,6 +186,7 @@ export function createAuthModule(): AuthModule {
             updateUserController,
             deleteUserController,
             authenticateAccessTokenMiddleware,
+            authorizePermissionMiddleware,
         }),
     }
 }

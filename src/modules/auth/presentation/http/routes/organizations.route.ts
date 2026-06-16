@@ -1,22 +1,37 @@
 import { Router, type RequestHandler } from 'express'
+import { AUTH_PERMISSIONS } from '../../../domain/rbac/default-rbac'
 import type {
+    AddOrganizationMemberController,
     CreateOrganizationController,
     ListOrganizationMembersController,
     ListOrganizationsController,
+    RemoveOrganizationMemberController,
+    UpdateMemberRolesController,
 } from '../controllers'
 
 type CreateOrganizationsRouterParams = {
     createOrganizationController: CreateOrganizationController
     listOrganizationsController: ListOrganizationsController
     listOrganizationMembersController: ListOrganizationMembersController
+    addOrganizationMemberController: AddOrganizationMemberController
+    updateMemberRolesController: UpdateMemberRolesController
+    removeOrganizationMemberController: RemoveOrganizationMemberController
     authenticateAccessTokenMiddleware: RequestHandler
+    authorizePermissionMiddleware: (
+        permissionCode: string,
+        options?: { organizationIdParam?: string },
+    ) => RequestHandler
 }
 
 export function createOrganizationsRouter({
     createOrganizationController,
     listOrganizationsController,
     listOrganizationMembersController,
+    addOrganizationMemberController,
+    updateMemberRolesController,
+    removeOrganizationMemberController,
     authenticateAccessTokenMiddleware,
+    authorizePermissionMiddleware,
 }: CreateOrganizationsRouterParams): Router {
     const router = Router()
 
@@ -33,7 +48,34 @@ export function createOrganizationsRouter({
     router.get(
         '/organizations/:id/members',
         authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.MEMBERS_READ, {
+            organizationIdParam: 'id',
+        }),
         listOrganizationMembersController.handle,
+    )
+    router.post(
+        '/organizations/:id/members',
+        authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.MEMBERS_MANAGE, {
+            organizationIdParam: 'id',
+        }),
+        addOrganizationMemberController.handle,
+    )
+    router.put(
+        '/organizations/:id/members/:organizationUserId/roles',
+        authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.MEMBERS_MANAGE, {
+            organizationIdParam: 'id',
+        }),
+        updateMemberRolesController.handle,
+    )
+    router.delete(
+        '/organizations/:id/members/:organizationUserId',
+        authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.MEMBERS_MANAGE, {
+            organizationIdParam: 'id',
+        }),
+        removeOrganizationMemberController.handle,
     )
 
     return router
