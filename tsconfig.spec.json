@@ -1,0 +1,16 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "isolatedModules": true,
+        "noEmit": true,
+        "rootDir": ".",
+        "types": ["jest", "node"]
+    },
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.d.ts",
+        "src/**/*.spec.ts",
+        "src/**/*.e2e-spec.ts"
+    ],
+    "exclude": ["node_modules", "dist"]
+}
