@@ -4,6 +4,7 @@ import type {
     AddOrganizationMemberController,
     CreateOrganizationController,
     ListOrganizationMembersController,
+    ListOrganizationRolesController,
     ListOrganizationsController,
     RemoveOrganizationMemberController,
     UpdateMemberRolesController,
@@ -13,6 +14,7 @@ type CreateOrganizationsRouterParams = {
     createOrganizationController: CreateOrganizationController
     listOrganizationsController: ListOrganizationsController
     listOrganizationMembersController: ListOrganizationMembersController
+    listOrganizationRolesController: ListOrganizationRolesController
     addOrganizationMemberController: AddOrganizationMemberController
     updateMemberRolesController: UpdateMemberRolesController
     removeOrganizationMemberController: RemoveOrganizationMemberController
@@ -27,6 +29,7 @@ export function createOrganizationsRouter({
     createOrganizationController,
     listOrganizationsController,
     listOrganizationMembersController,
+    listOrganizationRolesController,
     addOrganizationMemberController,
     updateMemberRolesController,
     removeOrganizationMemberController,
@@ -44,6 +47,14 @@ export function createOrganizationsRouter({
         '/organizations',
         authenticateAccessTokenMiddleware,
         listOrganizationsController.handle,
+    )
+    router.get(
+        '/organizations/:id/roles',
+        authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.MEMBERS_READ, {
+            organizationIdParam: 'id',
+        }),
+        listOrganizationRolesController.handle,
     )
     router.get(
         '/organizations/:id/members',

@@ -239,6 +239,33 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 },
             },
         },
+        OrganizationRole: {
+            type: 'object',
+            required: ['id', 'name', 'code', 'isSystem', 'createdAt'],
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid',
+                },
+                name: {
+                    type: 'string',
+                    example: 'Administrador',
+                },
+                code: {
+                    type: 'string',
+                    enum: ['ADMIN', 'HR', 'FINANCIAL', 'VIEWER'],
+                    example: 'ADMIN',
+                },
+                isSystem: {
+                    type: 'boolean',
+                    example: false,
+                },
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                },
+            },
+        },
         UserRole: {
             type: 'object',
             required: ['organizationUserId', 'role'],
@@ -875,6 +902,48 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                         },
                     },
                     '401': unauthorizedResponse,
+                },
+            },
+        },
+        '/organizations/{id}/roles': {
+            get: {
+                tags: ['Organizations'],
+                summary: 'Lista roles de uma organizacao',
+                description:
+                    'Lista as roles disponiveis da organizacao selecionada. Exige organizacao selecionada correspondente a rota, vinculo ativo e permissao settings.members.read.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                parameters: [
+                    {
+                        name: 'id',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                ],
+                responses: {
+                    '200': {
+                        description: 'Lista de roles da organizacao.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'array',
+                                    items: {
+                                        $ref: '#/components/schemas/OrganizationRole',
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    '401': unauthorizedResponse,
+                    '403': forbiddenResponse,
+                    '404': notFoundResponse,
                 },
             },
         },

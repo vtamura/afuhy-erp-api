@@ -1,7 +1,9 @@
 import type { OrganizationEntity } from '../../domain/entities/organization.entity'
 import type { OrganizationMember } from '../../domain/repositories/organization-user.repository'
+import type { RoleEntity } from '../../domain/repositories/role.repository'
 import type {
     OrganizationMemberResponseDto,
+    OrganizationRoleResponseDto,
     OrganizationResponseDto,
 } from '../dto'
 
@@ -30,5 +32,17 @@ export function toOrganizationMemberResponseDto(
         status: member.status,
         roles: member.roles,
         createdAt: member.createdAt.toISOString(),
+    }
+}
+
+export function toOrganizationRoleResponseDto(
+    role: RoleEntity,
+): OrganizationRoleResponseDto {
+    return {
+        id: role.id,
+        code: role.code,
+        name: role.name,
+        isSystem: role.isSystem,
+        createdAt: role.createdAt.toISOString(),
     }
 }

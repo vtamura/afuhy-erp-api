@@ -7,6 +7,7 @@ import {
     DeleteUserUseCase,
     ForgotPasswordUseCase,
     ListOrganizationMembersUseCase,
+    ListOrganizationRolesUseCase,
     ListOrganizationsUseCase,
     ListSessionsUseCase,
     ListUsersUseCase,
@@ -39,6 +40,7 @@ import {
     DeleteUserController,
     ForgotPasswordController,
     ListOrganizationMembersController,
+    ListOrganizationRolesController,
     ListOrganizationsController,
     ListSessionsController,
     ListUsersController,
@@ -100,6 +102,10 @@ export function createAuthModule(): AuthModule {
     const listOrganizationMembersUseCase = new ListOrganizationMembersUseCase(
         organizationRepository,
         organizationUserRepository,
+    )
+    const listOrganizationRolesUseCase = new ListOrganizationRolesUseCase(
+        organizationRepository,
+        roleRepository,
     )
     const addOrganizationMemberUseCase = new AddOrganizationMemberUseCase(
         organizationRepository,
@@ -177,6 +183,9 @@ export function createAuthModule(): AuthModule {
     )
     const listOrganizationMembersController =
         new ListOrganizationMembersController(listOrganizationMembersUseCase)
+    const listOrganizationRolesController = new ListOrganizationRolesController(
+        listOrganizationRolesUseCase,
+    )
     const addOrganizationMemberController = new AddOrganizationMemberController(
         addOrganizationMemberUseCase,
     )
@@ -243,6 +252,7 @@ export function createAuthModule(): AuthModule {
             createOrganizationController,
             listOrganizationsController,
             listOrganizationMembersController,
+            listOrganizationRolesController,
             addOrganizationMemberController,
             updateMemberRolesController,
             removeOrganizationMemberController,

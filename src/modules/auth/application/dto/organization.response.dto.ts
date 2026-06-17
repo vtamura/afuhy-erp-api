@@ -22,3 +22,11 @@ export type OrganizationMemberResponseDto = {
     }>
     createdAt: string
 }
+
+export type OrganizationRoleResponseDto = {
+    id: string
+    code: string
+    name: string
+    isSystem: boolean
+    createdAt: string
+}

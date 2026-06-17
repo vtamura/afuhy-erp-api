@@ -1,6 +1,7 @@
 export type { AuthResponseDto, SessionResponseDto } from './auth.response.dto'
 export type {
     OrganizationMemberResponseDto,
+    OrganizationRoleResponseDto,
     OrganizationResponseDto,
 } from './organization.response.dto'
 export type { ManagedSessionResponseDto } from './session-management.response.dto'
