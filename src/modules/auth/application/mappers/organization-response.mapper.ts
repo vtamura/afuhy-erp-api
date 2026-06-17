@@ -1,7 +1,9 @@
 import type { OrganizationEntity } from '../../domain/entities/organization.entity'
+import type { OrganizationInvitationEntity } from '../../domain/entities/organization-invitation.entity'
 import type { OrganizationMember } from '../../domain/repositories/organization-user.repository'
 import type { RoleEntity } from '../../domain/repositories/role.repository'
 import type {
+    OrganizationInvitationResponseDto,
     OrganizationMemberResponseDto,
     OrganizationRoleResponseDto,
     OrganizationResponseDto,
@@ -44,5 +46,24 @@ export function toOrganizationRoleResponseDto(
         name: role.name,
         isSystem: role.isSystem,
         createdAt: role.createdAt.toISOString(),
+    }
+}
+
+export function toOrganizationInvitationResponseDto(
+    invitation: OrganizationInvitationEntity,
+    invitationToken?: string,
+): OrganizationInvitationResponseDto {
+    return {
+        id: invitation.id,
+        organizationId: invitation.organizationId,
+        email: invitation.email,
+        status: invitation.status,
+        expiresAt: invitation.expiresAt.toISOString(),
+        acceptedAt: invitation.acceptedAt?.toISOString() ?? null,
+        cancelledAt: invitation.cancelledAt?.toISOString() ?? null,
+        createdAt: invitation.createdAt.toISOString(),
+        updatedAt: invitation.updatedAt.toISOString(),
+        roles: invitation.roles,
+        invitationToken,
     }
 }

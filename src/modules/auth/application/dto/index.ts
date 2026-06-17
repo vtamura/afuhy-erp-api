@@ -1,5 +1,6 @@
 export type { AuthResponseDto, SessionResponseDto } from './auth.response.dto'
 export type {
+    OrganizationInvitationResponseDto,
     OrganizationMemberResponseDto,
     OrganizationRoleResponseDto,
     OrganizationResponseDto,

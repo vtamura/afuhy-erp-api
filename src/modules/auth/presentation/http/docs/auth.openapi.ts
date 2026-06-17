@@ -266,6 +266,74 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 },
             },
         },
+        OrganizationInvitation: {
+            type: 'object',
+            required: [
+                'id',
+                'organizationId',
+                'email',
+                'status',
+                'expiresAt',
+                'acceptedAt',
+                'cancelledAt',
+                'createdAt',
+                'updatedAt',
+                'roles',
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid',
+                },
+                organizationId: {
+                    type: 'string',
+                    format: 'uuid',
+                },
+                email: {
+                    type: 'string',
+                    format: 'email',
+                    example: 'membro@afuhy.com.br',
+                },
+                status: {
+                    type: 'string',
+                    enum: ['PENDING', 'ACCEPTED', 'CANCELLED'],
+                    example: 'PENDING',
+                },
+                expiresAt: {
+                    type: 'string',
+                    format: 'date-time',
+                },
+                acceptedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    nullable: true,
+                },
+                cancelledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    nullable: true,
+                },
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                },
+                updatedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                },
+                roles: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/Role',
+                    },
+                },
+                invitationToken: {
+                    type: 'string',
+                    description:
+                        'Retornado apenas em development para testes locais.',
+                },
+            },
+        },
         UserRole: {
             type: 'object',
             required: ['organizationUserId', 'role'],
@@ -449,6 +517,50 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                         enum: ['ADMIN', 'HR', 'FINANCIAL', 'VIEWER'],
                     },
                     example: ['VIEWER'],
+                },
+            },
+        },
+        CreateOrganizationInvitationInput: {
+            type: 'object',
+            required: ['email', 'roleCodes'],
+            properties: {
+                email: {
+                    type: 'string',
+                    format: 'email',
+                    example: 'membro@afuhy.com.br',
+                },
+                roleCodes: {
+                    type: 'array',
+                    minItems: 1,
+                    items: {
+                        type: 'string',
+                        enum: ['ADMIN', 'HR', 'FINANCIAL', 'VIEWER'],
+                    },
+                    example: ['VIEWER'],
+                },
+            },
+        },
+        AcceptInvitationInput: {
+            type: 'object',
+            required: ['token'],
+            properties: {
+                token: {
+                    type: 'string',
+                },
+                name: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 150,
+                    description:
+                        'Obrigatorio quando o e-mail convidado ainda nao possui usuario ativo.',
+                    example: 'Maria Silva',
+                },
+                password: {
+                    type: 'string',
+                    minLength: 8,
+                    format: 'password',
+                    description:
+                        'Obrigatorio quando o e-mail convidado ainda nao possui usuario ativo.',
                 },
             },
         },
@@ -794,6 +906,42 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 },
             },
         },
+        '/auth/invitations/accept': {
+            post: {
+                tags: ['Auth'],
+                summary: 'Aceita convite de organizacao',
+                description:
+                    'Aceita um convite por token. Para e-mail sem usuario ativo, exige nome e senha. Nao autentica automaticamente.',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/AcceptInvitationInput',
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    '204': {
+                        description:
+                            'Convite aceito; usuario criado ou vinculado a organizacao.',
+                    },
+                    '400': {
+                        description:
+                            'Nome e senha ausentes quando o usuario ainda nao existe.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ErrorResponse',
+                                },
+                            },
+                        },
+                    },
+                    '401': unauthorizedResponse,
+                },
+            },
+        },
         '/auth/select-organization': {
             post: {
                 tags: ['Auth'],
@@ -940,6 +1088,148 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                                 },
                             },
                         },
+                    },
+                    '401': unauthorizedResponse,
+                    '403': forbiddenResponse,
+                    '404': notFoundResponse,
+                },
+            },
+        },
+        '/organizations/{id}/invitations': {
+            get: {
+                tags: ['Organizations'],
+                summary: 'Lista convites pendentes da organizacao',
+                description:
+                    'Lista apenas convites PENDING nao expirados. Exige permissao settings.members.read.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                parameters: [
+                    {
+                        name: 'id',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                ],
+                responses: {
+                    '200': {
+                        description: 'Lista de convites pendentes.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'array',
+                                    items: {
+                                        $ref: '#/components/schemas/OrganizationInvitation',
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    '401': unauthorizedResponse,
+                    '403': forbiddenResponse,
+                    '404': notFoundResponse,
+                },
+            },
+            post: {
+                tags: ['Organizations'],
+                summary: 'Cria ou reenviar convite de membro',
+                description:
+                    'Cria convite para e-mail novo/existente ou rotaciona token de convite pendente para o mesmo e-mail. Exige permissao settings.members.manage.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                parameters: [
+                    {
+                        name: 'id',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                ],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                $ref: '#/components/schemas/CreateOrganizationInvitationInput',
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    '201': {
+                        description:
+                            'Convite criado ou atualizado. Em development inclui invitationToken.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/OrganizationInvitation',
+                                },
+                            },
+                        },
+                    },
+                    '401': unauthorizedResponse,
+                    '403': forbiddenResponse,
+                    '404': notFoundResponse,
+                    '409': {
+                        description:
+                            'E-mail ja pertence a um membro ativo da organizacao.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/ErrorResponse',
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        '/organizations/{id}/invitations/{invitationId}': {
+            delete: {
+                tags: ['Organizations'],
+                summary: 'Cancela convite pendente',
+                description:
+                    'Cancela um convite PENDING nao expirado. Exige permissao settings.members.manage.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                parameters: [
+                    {
+                        name: 'id',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                    {
+                        name: 'invitationId',
+                        in: 'path',
+                        required: true,
+                        schema: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                ],
+                responses: {
+                    '204': {
+                        description: 'Convite cancelado.',
                     },
                     '401': unauthorizedResponse,
                     '403': forbiddenResponse,

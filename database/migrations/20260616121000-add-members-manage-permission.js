@@ -27,7 +27,6 @@ module.exports = {
             USING roles, permissions
             WHERE role_permissions.role_id = roles.id
                 AND role_permissions.permission_id = permissions.id
-                AND roles.code = 'ADMIN'
                 AND permissions.code = '${permissionCode}';
 
             DELETE FROM permissions

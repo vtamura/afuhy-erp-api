@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from 'express'
 import type {
+    AcceptOrganizationInvitationController,
     ChangePasswordController,
     ForgotPasswordController,
     ListSessionsController,
@@ -23,6 +24,7 @@ type CreateAuthRouterParams = {
     changePasswordController: ChangePasswordController
     forgotPasswordController: ForgotPasswordController
     resetPasswordController: ResetPasswordController
+    acceptOrganizationInvitationController: AcceptOrganizationInvitationController
     authenticateAccessTokenMiddleware: RequestHandler
 }
 
@@ -37,6 +39,7 @@ export function createAuthRouter({
     changePasswordController,
     forgotPasswordController,
     resetPasswordController,
+    acceptOrganizationInvitationController,
     authenticateAccessTokenMiddleware,
 }: CreateAuthRouterParams): Router {
     const router = Router()
@@ -66,6 +69,10 @@ export function createAuthRouter({
     )
     router.post('/auth/forgot-password', forgotPasswordController.handle)
     router.post('/auth/reset-password', resetPasswordController.handle)
+    router.post(
+        '/auth/invitations/accept',
+        acceptOrganizationInvitationController.handle,
+    )
     router.post(
         '/auth/select-organization',
         selectOrganizationController.handle,

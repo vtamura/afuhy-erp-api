@@ -1,0 +1,14 @@
+import { z } from 'zod'
+import { authUserSchema } from '../../../../shared/application/contracts'
+
+export const createOrganizationInvitationSchema = z.object({
+    id: z.string().uuid(),
+    email: z
+        .string()
+        .trim()
+        .email()
+        .max(180)
+        .transform((value) => value.toLowerCase()),
+    roleCodes: z.array(z.string().trim().min(1).max(100)).min(1),
+    authUser: authUserSchema,
+})

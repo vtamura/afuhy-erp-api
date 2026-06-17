@@ -30,3 +30,22 @@ export type OrganizationRoleResponseDto = {
     isSystem: boolean
     createdAt: string
 }
+
+export type OrganizationInvitationResponseDto = {
+    id: string
+    organizationId: string
+    email: string
+    status: string
+    expiresAt: string
+    acceptedAt: string | null
+    cancelledAt: string | null
+    createdAt: string
+    updatedAt: string
+    roles: Array<{
+        id: string
+        code: string
+        name: string
+        isSystem: boolean
+    }>
+    invitationToken?: string
+}

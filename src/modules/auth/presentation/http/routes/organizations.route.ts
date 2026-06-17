@@ -2,7 +2,10 @@ import { Router, type RequestHandler } from 'express'
 import { AUTH_PERMISSIONS } from '../../../domain/rbac/default-rbac'
 import type {
     AddOrganizationMemberController,
+    CancelOrganizationInvitationController,
     CreateOrganizationController,
+    CreateOrganizationInvitationController,
+    ListOrganizationInvitationsController,
     ListOrganizationMembersController,
     ListOrganizationRolesController,
     ListOrganizationsController,
@@ -15,6 +18,9 @@ type CreateOrganizationsRouterParams = {
     listOrganizationsController: ListOrganizationsController
     listOrganizationMembersController: ListOrganizationMembersController
     listOrganizationRolesController: ListOrganizationRolesController
+    createOrganizationInvitationController: CreateOrganizationInvitationController
+    listOrganizationInvitationsController: ListOrganizationInvitationsController
+    cancelOrganizationInvitationController: CancelOrganizationInvitationController
     addOrganizationMemberController: AddOrganizationMemberController
     updateMemberRolesController: UpdateMemberRolesController
     removeOrganizationMemberController: RemoveOrganizationMemberController
@@ -23,6 +29,9 @@ type CreateOrganizationsRouterParams = {
         permissionCode: string,
         options?: { organizationIdParam?: string },
     ) => RequestHandler
+    enforceUserLimitMiddleware?: (options?: {
+        organizationIdParam?: string
+    }) => RequestHandler
 }
 
 export function createOrganizationsRouter({
@@ -30,13 +39,19 @@ export function createOrganizationsRouter({
     listOrganizationsController,
     listOrganizationMembersController,
     listOrganizationRolesController,
+    createOrganizationInvitationController,
+    listOrganizationInvitationsController,
+    cancelOrganizationInvitationController,
     addOrganizationMemberController,
     updateMemberRolesController,
     removeOrganizationMemberController,
     authenticateAccessTokenMiddleware,
     authorizePermissionMiddleware,
+    enforceUserLimitMiddleware,
 }: CreateOrganizationsRouterParams): Router {
     const router = Router()
+    const enforceUserLimit =
+        enforceUserLimitMiddleware ?? (() => (_req, _res, next) => next())
 
     router.post(
         '/organizations',
@@ -47,6 +62,31 @@ export function createOrganizationsRouter({
         '/organizations',
         authenticateAccessTokenMiddleware,
         listOrganizationsController.handle,
+    )
+    router.get(
+        '/organizations/:id/invitations',
+        authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.MEMBERS_READ, {
+            organizationIdParam: 'id',
+        }),
+        listOrganizationInvitationsController.handle,
+    )
+    router.post(
+        '/organizations/:id/invitations',
+        authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.MEMBERS_MANAGE, {
+            organizationIdParam: 'id',
+        }),
+        enforceUserLimit({ organizationIdParam: 'id' }),
+        createOrganizationInvitationController.handle,
+    )
+    router.delete(
+        '/organizations/:id/invitations/:invitationId',
+        authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.MEMBERS_MANAGE, {
+            organizationIdParam: 'id',
+        }),
+        cancelOrganizationInvitationController.handle,
     )
     router.get(
         '/organizations/:id/roles',
@@ -70,6 +110,7 @@ export function createOrganizationsRouter({
         authorizePermissionMiddleware(AUTH_PERMISSIONS.MEMBERS_MANAGE, {
             organizationIdParam: 'id',
         }),
+        enforceUserLimit({ organizationIdParam: 'id' }),
         addOrganizationMemberController.handle,
     )
     router.put(
