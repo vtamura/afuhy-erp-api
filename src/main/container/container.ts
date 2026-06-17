@@ -1,5 +1,6 @@
 import type { Router } from 'express'
 import { createAuthModule } from '../../modules/auth'
+import { createBillingModule } from '../../modules/billing'
 import { createExampleModule } from '../../modules/example'
 import { healthRouter } from '../../shared/presentation/http/routes/health.route'
 
@@ -9,11 +10,15 @@ export type HttpDependencies = {
     authRouter: Router
     organizationsRouter: Router
     usersRouter: Router
+    billingRouter: Router
 }
 
 export function createHttpDependencies(): HttpDependencies {
     const exampleModule = createExampleModule()
-    const authModule = createAuthModule()
+    const billingModule = createBillingModule()
+    const authModule = createAuthModule({
+        enforceUserLimitMiddleware: billingModule.enforceUserLimitMiddleware,
+    })
 
     return {
         healthRouter,
@@ -21,5 +26,6 @@ export function createHttpDependencies(): HttpDependencies {
         authRouter: authModule.authRouter,
         organizationsRouter: authModule.organizationsRouter,
         usersRouter: authModule.usersRouter,
+        billingRouter: billingModule.billingRouter,
     }
 }

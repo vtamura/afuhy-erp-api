@@ -8,6 +8,8 @@ const permissions = [
     ['settings.users.read', 'Visualizar usuarios da organizacao'],
     ['settings.users.update', 'Editar usuarios da organizacao'],
     ['settings.users.delete', 'Excluir usuarios da organizacao'],
+    ['settings.billing.read', 'Visualizar assinatura e planos'],
+    ['settings.billing.manage', 'Gerenciar assinatura da organizacao'],
     ['hr.employees.read', 'Visualizar colaboradores do RH'],
     ['hr.employees.manage', 'Gerenciar colaboradores do RH'],
     ['financial.transactions.read', 'Visualizar transacoes financeiras'],

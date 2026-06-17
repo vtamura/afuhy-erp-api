@@ -22,6 +22,10 @@ module.exports = {
 
             CREATE INDEX subscriptions_plan_id_idx
                 ON subscriptions (plan_id);
+
+            CREATE UNIQUE INDEX subscriptions_current_organization_unique
+                ON subscriptions (organization_id)
+                WHERE status IN ('TRIALING', 'ACTIVE', 'PAST_DUE');
         `)
     },
 

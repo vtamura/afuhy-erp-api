@@ -6,6 +6,8 @@ export const AUTH_PERMISSIONS = {
     USERS_READ: 'settings.users.read',
     USERS_UPDATE: 'settings.users.update',
     USERS_DELETE: 'settings.users.delete',
+    BILLING_READ: 'settings.billing.read',
+    BILLING_MANAGE: 'settings.billing.manage',
     HR_EMPLOYEES_READ: 'hr.employees.read',
     HR_EMPLOYEES_MANAGE: 'hr.employees.manage',
     FINANCIAL_TRANSACTIONS_READ: 'financial.transactions.read',

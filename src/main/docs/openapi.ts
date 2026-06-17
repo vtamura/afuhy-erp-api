@@ -1,9 +1,11 @@
 import { authOpenApiDocument } from '../../modules/auth/presentation/http/docs/auth.openapi'
+import { billingOpenApiDocument } from '../../modules/billing/presentation/http/docs/billing.openapi'
 import { exampleOpenApiDocument } from '../../modules/example/presentation/http/docs/example.openapi'
 import type { OpenApiModuleDocument } from './openapi.types'
 
 const moduleDocuments: OpenApiModuleDocument[] = [
     authOpenApiDocument,
+    billingOpenApiDocument,
     exampleOpenApiDocument,
 ]
 
