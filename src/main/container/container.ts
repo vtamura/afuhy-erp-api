@@ -4,6 +4,7 @@ import { createBillingModule } from '../../modules/billing'
 import { createExampleModule } from '../../modules/example'
 import { createFinancialModule } from '../../modules/financial'
 import { createRegistryModule } from '../../modules/registry'
+import { createTasksModule } from '../../modules/tasks'
 import { healthRouter } from '../../shared/presentation/http/routes/health.route'
 
 export type HttpDependencies = {
@@ -15,6 +16,7 @@ export type HttpDependencies = {
     billingRouter: Router
     registryRouter: Router
     financialRouter: Router
+    tasksRouter: Router
 }
 
 export function createHttpDependencies(): HttpDependencies {
@@ -29,6 +31,9 @@ export function createHttpDependencies(): HttpDependencies {
     const financialModule = createFinancialModule({
         authorizeFeatureMiddleware: billingModule.authorizeFeatureMiddleware,
     })
+    const tasksModule = createTasksModule({
+        authorizeFeatureMiddleware: billingModule.authorizeFeatureMiddleware,
+    })
 
     return {
         healthRouter,
@@ -39,5 +44,6 @@ export function createHttpDependencies(): HttpDependencies {
         billingRouter: billingModule.billingRouter,
         registryRouter: registryModule.registryRouter,
         financialRouter: financialModule.financialRouter,
+        tasksRouter: tasksModule.tasksRouter,
     }
 }

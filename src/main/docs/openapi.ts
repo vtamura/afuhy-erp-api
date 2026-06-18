@@ -3,6 +3,7 @@ import { billingOpenApiDocument } from '../../modules/billing/presentation/http/
 import { exampleOpenApiDocument } from '../../modules/example/presentation/http/docs/example.openapi'
 import { financialOpenApiDocument } from '../../modules/financial/presentation/http/docs/financial.openapi'
 import { registryOpenApiDocument } from '../../modules/registry/presentation/http/docs/registry.openapi'
+import { tasksOpenApiDocument } from '../../modules/tasks/presentation/http/docs/tasks.openapi'
 import type { OpenApiModuleDocument } from './openapi.types'
 
 const moduleDocuments: OpenApiModuleDocument[] = [
@@ -10,6 +11,7 @@ const moduleDocuments: OpenApiModuleDocument[] = [
     billingOpenApiDocument,
     registryOpenApiDocument,
     financialOpenApiDocument,
+    tasksOpenApiDocument,
     exampleOpenApiDocument,
 ]
 
