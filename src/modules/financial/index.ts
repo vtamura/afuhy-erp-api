@@ -8,6 +8,7 @@ import { JwtTokenService } from '../auth/infrastructure/security/jwt-token.servi
 import { createAuthenticateAccessTokenMiddleware } from '../auth/presentation/http/middlewares/authenticate-access-token.middleware'
 import { createAuthorizePermissionMiddleware } from '../auth/presentation/http/middlewares/authorize-permission.middleware'
 import { PostgresFinancialRepository } from './infrastructure/repositories/postgres-financial.repository'
+import { SystemFinancialClock } from './infrastructure/clock/system-financial-clock'
 import { createFinancialHttpRouterFactory } from './main/factories'
 import { createFinancialRouter } from './presentation/http/routes'
 
@@ -38,6 +39,8 @@ export function createFinancialModule(
     return {
         financialRouter: createFinancialHttpRouterFactory({
             financialRepository,
+            financialDashboardRepository: financialRepository,
+            financialClock: new SystemFinancialClock(),
             middlewares: {
                 authenticateAccessTokenMiddleware,
                 authorizePermissionMiddleware,

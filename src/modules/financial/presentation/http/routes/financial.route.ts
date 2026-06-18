@@ -10,6 +10,7 @@ import type {
     DeleteFinancialTransactionController,
     GetFinancialAccountController,
     GetFinancialCategoryController,
+    GetFinancialDashboardController,
     GetFinancialTransactionController,
     ListFinancialAccountsController,
     ListFinancialCategoriesController,
@@ -21,6 +22,7 @@ import type {
 } from '../controllers'
 
 type FinancialControllers = {
+    dashboard: GetFinancialDashboardController
     accounts: {
         create: CreateFinancialAccountController
         list: ListFinancialAccountsController
@@ -57,6 +59,14 @@ export function createFinancialRouter(params: {
     const feature = params.authorizeFeatureMiddleware('financial.basic')
     const permission = params.authorizePermissionMiddleware
     const controllers = params.controllers
+
+    router.get(
+        '/financial/dashboard',
+        auth,
+        permission(AUTH_PERMISSIONS.FINANCIAL_DASHBOARD_READ),
+        feature,
+        controllers.dashboard.handle,
+    )
 
     registerCrud(router, {
         path: '/financial/accounts',

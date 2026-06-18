@@ -10,6 +10,13 @@ import type {
     FinancialTransactionType,
 } from '../../domain/entities/financial.entity'
 import type {
+    FinancialDashboardCategory,
+    FinancialDashboardData,
+    FinancialDashboardDueGroup,
+    FinancialDashboardQuery,
+    FinancialDashboardRepository,
+} from '../../domain/repositories/financial-dashboard.repository'
+import type {
     FinancialAccountData,
     FinancialCategoryData,
     FinancialRepository,
@@ -102,7 +109,9 @@ const accountBalanceSelect = `
         AND transactions.deleted_at IS NULL
 `
 
-export class PostgresFinancialRepository implements FinancialRepository {
+export class PostgresFinancialRepository
+    implements FinancialRepository, FinancialDashboardRepository
+{
     constructor(
         private readonly databaseClient: DatabaseClient = getDatabaseClient(),
     ) {}
@@ -546,6 +555,34 @@ export class PostgresFinancialRepository implements FinancialRepository {
         return rows.length > 0
     }
 
+    async getDashboard(
+        query: FinancialDashboardQuery,
+    ): Promise<FinancialDashboardData> {
+        const [accounts, cashFlow, monthlyFlow, categories, overdue, upcoming] =
+            await Promise.all([
+                this.listAccounts(query.organizationId),
+                this.dashboardCashFlow(query),
+                this.dashboardMonthlyFlow(query),
+                this.dashboardCategories(query),
+                this.dashboardDueGroup(query, 'overdue'),
+                this.dashboardDueGroup(query, 'upcoming'),
+            ])
+
+        return {
+            accounts,
+            cashFlow,
+            monthlyFlow,
+            incomeCategories: categories.filter(
+                (category) => category.type === 'INCOME',
+            ),
+            expenseCategories: categories.filter(
+                (category) => category.type === 'EXPENSE',
+            ),
+            overdue,
+            upcoming,
+        }
+    }
+
     private transactionFilters(filters: FinancialTransactionFilters) {
         const clauses = [
             'organization_id = :organizationId',
@@ -584,6 +621,203 @@ export class PostgresFinancialRepository implements FinancialRepository {
         return {
             where: `WHERE ${clauses.join('\n AND ')}`,
             replacements,
+        }
+    }
+
+    private async dashboardCashFlow(query: FinancialDashboardQuery) {
+        const [row] = await this.databaseClient.select<{
+            paid_income: string
+            paid_expense: string
+            pending_income: string
+            pending_expense: string
+        }>(
+            `
+                SELECT
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE status = 'PAID' AND type = 'INCOME'
+                    ), 0)::NUMERIC(15, 2)::TEXT AS paid_income,
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE status = 'PAID' AND type = 'EXPENSE'
+                    ), 0)::NUMERIC(15, 2)::TEXT AS paid_expense,
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE status = 'PENDING' AND type = 'INCOME'
+                    ), 0)::NUMERIC(15, 2)::TEXT AS pending_income,
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE status = 'PENDING' AND type = 'EXPENSE'
+                    ), 0)::NUMERIC(15, 2)::TEXT AS pending_expense
+                FROM financial_transactions
+                WHERE organization_id = :organizationId
+                    AND transaction_date BETWEEN :periodStart AND :periodEnd
+                    AND deleted_at IS NULL
+            `,
+            query,
+        )
+
+        return {
+            paidIncome: row.paid_income,
+            paidExpense: row.paid_expense,
+            pendingIncome: row.pending_income,
+            pendingExpense: row.pending_expense,
+        }
+    }
+
+    private async dashboardMonthlyFlow(query: FinancialDashboardQuery) {
+        const rows = await this.databaseClient.select<{
+            year: string
+            month: string
+            income: string
+            expense: string
+            result: string
+        }>(
+            `
+                SELECT
+                    EXTRACT(YEAR FROM transaction_date)::INTEGER::TEXT AS year,
+                    EXTRACT(MONTH FROM transaction_date)::INTEGER::TEXT AS month,
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE type = 'INCOME'
+                    ), 0)::NUMERIC(15, 2)::TEXT AS income,
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE type = 'EXPENSE'
+                    ), 0)::NUMERIC(15, 2)::TEXT AS expense,
+                    COALESCE(SUM(
+                        CASE
+                            WHEN type = 'INCOME' THEN amount
+                            ELSE -amount
+                        END
+                    ), 0)::NUMERIC(15, 2)::TEXT AS result
+                FROM financial_transactions
+                WHERE organization_id = :organizationId
+                    AND status = 'PAID'
+                    AND transaction_date BETWEEN :seriesStart AND :periodEnd
+                    AND deleted_at IS NULL
+                GROUP BY
+                    EXTRACT(YEAR FROM transaction_date),
+                    EXTRACT(MONTH FROM transaction_date)
+                ORDER BY year, month
+            `,
+            query,
+        )
+
+        return rows.map((row) => ({
+            year: Number(row.year),
+            month: Number(row.month),
+            income: row.income,
+            expense: row.expense,
+            result: row.result,
+        }))
+    }
+
+    private async dashboardCategories(
+        query: FinancialDashboardQuery,
+    ): Promise<FinancialDashboardCategory[]> {
+        const rows = await this.databaseClient.select<{
+            category_id: string
+            name: string
+            type: FinancialTransactionType
+            amount: string
+            percentage: string
+        }>(
+            `
+                WITH category_totals AS (
+                    SELECT
+                        categories.id AS category_id,
+                        categories.name,
+                        transactions.type,
+                        SUM(transactions.amount) AS amount
+                    FROM financial_transactions transactions
+                    INNER JOIN financial_categories categories
+                        ON categories.id = transactions.category_id
+                    WHERE transactions.organization_id = :organizationId
+                        AND transactions.status = 'PAID'
+                        AND transactions.transaction_date
+                            BETWEEN :periodStart AND :periodEnd
+                        AND transactions.deleted_at IS NULL
+                    GROUP BY categories.id, categories.name, transactions.type
+                ),
+                ranked AS (
+                    SELECT
+                        category_totals.*,
+                        SUM(amount) OVER (PARTITION BY type) AS type_total,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY type
+                            ORDER BY amount DESC, name ASC
+                        ) AS position
+                    FROM category_totals
+                )
+                SELECT
+                    category_id,
+                    name,
+                    type,
+                    amount::NUMERIC(15, 2)::TEXT AS amount,
+                    (
+                        amount / NULLIF(type_total, 0) * 100
+                    )::NUMERIC(7, 2)::TEXT AS percentage
+                FROM ranked
+                WHERE position <= 5
+                ORDER BY type, position
+            `,
+            query,
+        )
+
+        return rows.map((row) => ({
+            categoryId: row.category_id,
+            name: row.name,
+            type: row.type,
+            amount: row.amount,
+            percentage: row.percentage,
+        }))
+    }
+
+    private async dashboardDueGroup(
+        query: FinancialDashboardQuery,
+        group: 'overdue' | 'upcoming',
+    ): Promise<FinancialDashboardDueGroup> {
+        const dateCondition =
+            group === 'overdue'
+                ? 'due_date < :today'
+                : 'due_date BETWEEN :today AND :upcomingEnd'
+        const replacements = query
+        const [totals] = await this.databaseClient.select<{
+            count: string
+            income: string
+            expense: string
+        }>(
+            `
+                SELECT
+                    COUNT(*)::TEXT AS count,
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE type = 'INCOME'
+                    ), 0)::NUMERIC(15, 2)::TEXT AS income,
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE type = 'EXPENSE'
+                    ), 0)::NUMERIC(15, 2)::TEXT AS expense
+                FROM financial_transactions
+                WHERE organization_id = :organizationId
+                    AND status = 'PENDING'
+                    AND ${dateCondition}
+                    AND deleted_at IS NULL
+            `,
+            replacements,
+        )
+        const items = await this.databaseClient.select<TransactionRow>(
+            `
+                SELECT *
+                FROM financial_transactions
+                WHERE organization_id = :organizationId
+                    AND status = 'PENDING'
+                    AND ${dateCondition}
+                    AND deleted_at IS NULL
+                ORDER BY due_date ASC, created_at ASC
+                LIMIT 5
+            `,
+            replacements,
+        )
+
+        return {
+            count: Number(totals.count),
+            income: totals.income,
+            expense: totals.expense,
+            items: items.map((row) => this.toTransaction(row)),
         }
     }
 

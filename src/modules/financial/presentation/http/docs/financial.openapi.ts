@@ -304,6 +304,36 @@ const transactionPaths = {
     },
 }
 
+const dashboardPath = {
+    '/financial/dashboard': {
+        get: {
+            ...operation({
+                summary: 'Consulta dashboard financeiro',
+                permission: 'financial.dashboard.read',
+                responseSchema: {
+                    $ref: '#/components/schemas/FinancialDashboard',
+                },
+            }),
+            parameters: [
+                {
+                    name: 'year',
+                    in: 'query',
+                    schema: {
+                        type: 'integer',
+                        minimum: 2000,
+                        maximum: 2100,
+                    },
+                },
+                {
+                    name: 'month',
+                    in: 'query',
+                    schema: { type: 'integer', minimum: 1, maximum: 12 },
+                },
+            ],
+        },
+    },
+}
+
 export const financialOpenApiDocument: OpenApiModuleDocument = {
     tags: [
         {
@@ -443,8 +473,129 @@ export const financialOpenApiDocument: OpenApiModuleDocument = {
                 },
             },
         },
+        FinancialDashboardCategory: {
+            type: 'object',
+            required: ['categoryId', 'name', 'amount', 'percentage'],
+            properties: {
+                categoryId: { type: 'string', format: 'uuid' },
+                name: { type: 'string' },
+                amount: money,
+                percentage: {
+                    type: 'string',
+                    pattern: '^\\d{1,3}(\\.\\d{2})$',
+                    example: '45.50',
+                },
+            },
+        },
+        FinancialDashboardAccount: {
+            allOf: [{ $ref: '#/components/schemas/FinancialAccount' }],
+        },
+        FinancialDashboardDueGroup: {
+            type: 'object',
+            required: ['count', 'income', 'expense', 'items'],
+            properties: {
+                count: { type: 'integer' },
+                income: money,
+                expense: money,
+                items: {
+                    type: 'array',
+                    maxItems: 5,
+                    items: {
+                        $ref: '#/components/schemas/FinancialTransaction',
+                    },
+                },
+            },
+        },
+        FinancialDashboard: {
+            type: 'object',
+            required: [
+                'period',
+                'balances',
+                'cashFlow',
+                'accounts',
+                'monthlyFlow',
+                'categories',
+                'overdue',
+                'upcoming',
+            ],
+            properties: {
+                period: {
+                    type: 'object',
+                    properties: {
+                        year: { type: 'integer' },
+                        month: { type: 'integer' },
+                        startDate: { type: 'string', format: 'date' },
+                        endDate: { type: 'string', format: 'date' },
+                    },
+                },
+                balances: {
+                    type: 'object',
+                    properties: {
+                        current: money,
+                        projected: money,
+                    },
+                },
+                cashFlow: {
+                    type: 'object',
+                    properties: {
+                        paidIncome: money,
+                        paidExpense: money,
+                        result: money,
+                        pendingIncome: money,
+                        pendingExpense: money,
+                    },
+                },
+                accounts: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/FinancialDashboardAccount',
+                    },
+                },
+                monthlyFlow: {
+                    type: 'array',
+                    minItems: 12,
+                    maxItems: 12,
+                    items: {
+                        type: 'object',
+                        properties: {
+                            year: { type: 'integer' },
+                            month: { type: 'integer' },
+                            income: money,
+                            expense: money,
+                            result: money,
+                        },
+                    },
+                },
+                categories: {
+                    type: 'object',
+                    properties: {
+                        income: {
+                            type: 'array',
+                            maxItems: 5,
+                            items: {
+                                $ref: '#/components/schemas/FinancialDashboardCategory',
+                            },
+                        },
+                        expense: {
+                            type: 'array',
+                            maxItems: 5,
+                            items: {
+                                $ref: '#/components/schemas/FinancialDashboardCategory',
+                            },
+                        },
+                    },
+                },
+                overdue: {
+                    $ref: '#/components/schemas/FinancialDashboardDueGroup',
+                },
+                upcoming: {
+                    $ref: '#/components/schemas/FinancialDashboardDueGroup',
+                },
+            },
+        },
     },
     paths: {
+        ...dashboardPath,
         ...crudPaths({
             pathName: 'accounts',
             label: 'contas financeiras',

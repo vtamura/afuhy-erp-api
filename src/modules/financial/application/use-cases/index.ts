@@ -21,3 +21,4 @@ export {
     PayFinancialTransactionUseCase,
     UpdateFinancialTransactionUseCase,
 } from './financial-transaction.use-cases'
+export { GetFinancialDashboardUseCase } from './get-financial-dashboard.use-case'

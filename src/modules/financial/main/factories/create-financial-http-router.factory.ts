@@ -8,6 +8,7 @@ import {
     DeleteFinancialTransactionUseCase,
     GetFinancialAccountUseCase,
     GetFinancialCategoryUseCase,
+    GetFinancialDashboardUseCase,
     GetFinancialTransactionUseCase,
     ListFinancialAccountsUseCase,
     ListFinancialCategoriesUseCase,
@@ -27,6 +28,7 @@ import {
     DeleteFinancialTransactionController,
     GetFinancialAccountController,
     GetFinancialCategoryController,
+    GetFinancialDashboardController,
     GetFinancialTransactionController,
     ListFinancialAccountsController,
     ListFinancialCategoriesController,
@@ -46,6 +48,12 @@ export function createFinancialHttpRouterFactory(
 
     return createFinancialRouter({
         controllers: {
+            dashboard: new GetFinancialDashboardController(
+                new GetFinancialDashboardUseCase(
+                    deps.financialDashboardRepository,
+                    deps.financialClock,
+                ),
+            ),
             accounts: {
                 create: new CreateFinancialAccountController(
                     new CreateFinancialAccountUseCase(repository),

@@ -60,3 +60,54 @@ export type FinancialTransactionListResponseDto = {
         pendingExpense: string
     }
 }
+
+export type FinancialDashboardResponseDto = {
+    period: {
+        year: number
+        month: number
+        startDate: string
+        endDate: string
+    }
+    balances: {
+        current: string
+        projected: string
+    }
+    cashFlow: {
+        paidIncome: string
+        paidExpense: string
+        result: string
+        pendingIncome: string
+        pendingExpense: string
+    }
+    accounts: FinancialAccountResponseDto[]
+    monthlyFlow: Array<{
+        year: number
+        month: number
+        income: string
+        expense: string
+        result: string
+    }>
+    categories: {
+        income: Array<{
+            categoryId: string
+            name: string
+            amount: string
+            percentage: string
+        }>
+        expense: Array<{
+            categoryId: string
+            name: string
+            amount: string
+            percentage: string
+        }>
+    }
+    overdue: FinancialDashboardDueGroupResponseDto
+    upcoming: FinancialDashboardDueGroupResponseDto
+}
+
+export type FinancialDashboardDueGroupResponseDto = {
+    count: number
+    income: string
+    expense: string
+    items: FinancialTransactionResponseDto[]
+}

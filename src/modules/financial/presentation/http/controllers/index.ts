@@ -17,3 +17,4 @@ export {
     UpdateFinancialCategoryController,
     UpdateFinancialTransactionController,
 } from './financial.controllers'
+export { GetFinancialDashboardController } from './get-financial-dashboard.controller'

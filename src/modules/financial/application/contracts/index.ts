@@ -6,6 +6,7 @@ export {
     deleteFinancialAccountSchema,
     deleteFinancialCategorySchema,
     deleteFinancialTransactionSchema,
+    getFinancialDashboardSchema,
     getFinancialAccountSchema,
     getFinancialCategorySchema,
     getFinancialTransactionSchema,
