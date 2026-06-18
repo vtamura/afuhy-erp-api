@@ -14,6 +14,8 @@ export const AUTH_PERMISSIONS = {
     REGISTRY_SUPPLIERS_MANAGE: 'registry.suppliers.manage',
     HR_EMPLOYEES_READ: 'hr.employees.read',
     HR_EMPLOYEES_MANAGE: 'hr.employees.manage',
+    TASKS_READ: 'tasks.tasks.read',
+    TASKS_MANAGE: 'tasks.tasks.manage',
     FINANCIAL_ACCOUNTS_READ: 'financial.accounts.read',
     FINANCIAL_ACCOUNTS_MANAGE: 'financial.accounts.manage',
     FINANCIAL_CATEGORIES_READ: 'financial.categories.read',
@@ -46,6 +48,8 @@ export const DEFAULT_ORGANIZATION_ROLES = [
             AUTH_PERMISSIONS.USERS_READ,
             AUTH_PERMISSIONS.HR_EMPLOYEES_READ,
             AUTH_PERMISSIONS.HR_EMPLOYEES_MANAGE,
+            AUTH_PERMISSIONS.TASKS_READ,
+            AUTH_PERMISSIONS.TASKS_MANAGE,
         ],
     },
     {
@@ -70,6 +74,8 @@ export const DEFAULT_ORGANIZATION_ROLES = [
             AUTH_PERMISSIONS.REGISTRY_CUSTOMERS_MANAGE,
             AUTH_PERMISSIONS.REGISTRY_SUPPLIERS_READ,
             AUTH_PERMISSIONS.REGISTRY_SUPPLIERS_MANAGE,
+            AUTH_PERMISSIONS.TASKS_READ,
+            AUTH_PERMISSIONS.TASKS_MANAGE,
         ],
     },
     {
@@ -87,6 +93,7 @@ export const DEFAULT_ORGANIZATION_ROLES = [
             AUTH_PERMISSIONS.FINANCIAL_PAYABLES_READ,
             AUTH_PERMISSIONS.FINANCIAL_RECEIVABLES_READ,
             AUTH_PERMISSIONS.FINANCIAL_TRANSACTIONS_READ,
+            AUTH_PERMISSIONS.TASKS_READ,
         ],
     },
 ] as const
