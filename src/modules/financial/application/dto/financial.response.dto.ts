@@ -1,0 +1,62 @@
+export type FinancialAccountResponseDto = {
+    id: string
+    organizationId: string
+    name: string
+    type: 'CASH' | 'BANK' | 'DIGITAL_WALLET'
+    initialBalance: string
+    currentBalance: string
+    projectedBalance: string
+    status: 'ACTIVE' | 'INACTIVE'
+    createdAt: string
+    updatedAt: string
+    deletedAt: string | null
+}
+
+export type FinancialCategoryResponseDto = {
+    id: string
+    organizationId: string
+    name: string
+    type: 'INCOME' | 'EXPENSE'
+    status: 'ACTIVE' | 'INACTIVE'
+    createdAt: string
+    updatedAt: string
+    deletedAt: string | null
+}
+
+export type FinancialTransactionResponseDto = {
+    id: string
+    organizationId: string
+    accountId: string
+    categoryId: string
+    customerId: string | null
+    supplierId: string | null
+    description: string
+    notes: string | null
+    type: 'INCOME' | 'EXPENSE'
+    amount: string
+    transactionDate: string
+    dueDate: string | null
+    status: 'PENDING' | 'PAID' | 'CANCELED'
+    paidAt: string | null
+    canceledAt: string | null
+    createdBy: string
+    createdAt: string
+    updatedAt: string
+    deletedAt: string | null
+}
+
+export type FinancialTransactionListResponseDto = {
+    items: FinancialTransactionResponseDto[]
+    pagination: {
+        page: number
+        pageSize: number
+        total: number
+        totalPages: number
+    }
+    summary: {
+        paidIncome: string
+        paidExpense: string
+        pendingIncome: string
+        pendingExpense: string
+    }
+}
