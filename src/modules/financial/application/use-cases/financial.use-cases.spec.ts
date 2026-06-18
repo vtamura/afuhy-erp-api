@@ -32,6 +32,7 @@ import {
 const organizationId = '59452bb1-ee59-45d3-8ab7-d35f3c12d53c'
 const otherOrganizationId = '77a4cace-b14f-4a0d-b7fa-406be4b139cc'
 const userId = '3ccbcefd-b996-4362-94bb-46955de8813e'
+const clock = { now: () => new Date('2026-06-18T12:00:00.000Z') }
 
 class InMemoryFinancialRepository implements FinancialRepository {
     accounts: FinancialAccountEntity[] = []
@@ -305,10 +306,14 @@ class InMemoryFinancialRepository implements FinancialRepository {
         id: string
         organizationId: string
         status: 'PAID' | 'CANCELED'
+        settlementDate?: string
     }) {
         const transaction = await this.findTransactionById(input)
         if (!transaction) return null
         transaction.status = input.status
+        if (input.status === 'PAID' && input.settlementDate) {
+            transaction.transactionDate = input.settlementDate
+        }
         transaction.paidAt =
             input.status === 'PAID' ? new Date() : transaction.paidAt
         transaction.canceledAt = input.status === 'CANCELED' ? new Date() : null
@@ -485,7 +490,7 @@ describe('Financial use cases', () => {
     it('calculates current and projected balances', async () => {
         const data = await setup()
         const create = new CreateFinancialTransactionUseCase(data.repository)
-        const pay = new PayFinancialTransactionUseCase(data.repository)
+        const pay = new PayFinancialTransactionUseCase(data.repository, clock)
         const paid = await create.execute(transactionInput(data))
         await pay.execute({ id: paid.id, organizationId })
         await create.execute(
@@ -507,7 +512,7 @@ describe('Financial use cases', () => {
     it('paginates transactions and summarizes the complete filter', async () => {
         const data = await setup()
         const create = new CreateFinancialTransactionUseCase(data.repository)
-        const pay = new PayFinancialTransactionUseCase(data.repository)
+        const pay = new PayFinancialTransactionUseCase(data.repository, clock)
         const first = await create.execute(transactionInput(data))
         await pay.execute({ id: first.id, organizationId })
         await create.execute(
@@ -537,7 +542,10 @@ describe('Financial use cases', () => {
         const data = await setup()
         const create = new CreateFinancialTransactionUseCase(data.repository)
         const created = await create.execute(transactionInput(data))
-        await new PayFinancialTransactionUseCase(data.repository).execute({
+        await new PayFinancialTransactionUseCase(
+            data.repository,
+            clock,
+        ).execute({
             id: created.id,
             organizationId,
         })
@@ -562,7 +570,10 @@ describe('Financial use cases', () => {
         const created = await new CreateFinancialTransactionUseCase(
             data.repository,
         ).execute(transactionInput(data))
-        await new PayFinancialTransactionUseCase(data.repository).execute({
+        await new PayFinancialTransactionUseCase(
+            data.repository,
+            clock,
+        ).execute({
             id: created.id,
             organizationId,
         })

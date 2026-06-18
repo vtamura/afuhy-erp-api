@@ -17,6 +17,12 @@ import type {
     FinancialDashboardRepository,
 } from '../../domain/repositories/financial-dashboard.repository'
 import type {
+    FinancialObligationEntity,
+    FinancialObligationFilters,
+    FinancialObligationPage,
+    FinancialObligationRepository,
+} from '../../domain/repositories/financial-obligation.repository'
+import type {
     FinancialAccountData,
     FinancialCategoryData,
     FinancialRepository,
@@ -72,6 +78,12 @@ type TransactionRow = {
     deleted_at: Date | null
 }
 
+type ObligationRow = TransactionRow & {
+    account_name: string
+    category_name: string
+    counterparty_name: string | null
+}
+
 const accountBalanceSelect = `
     SELECT
         accounts.*,
@@ -110,7 +122,10 @@ const accountBalanceSelect = `
 `
 
 export class PostgresFinancialRepository
-    implements FinancialRepository, FinancialDashboardRepository
+    implements
+        FinancialRepository,
+        FinancialDashboardRepository,
+        FinancialObligationRepository
 {
     constructor(
         private readonly databaseClient: DatabaseClient = getDatabaseClient(),
@@ -501,13 +516,23 @@ export class PostgresFinancialRepository
         id: string
         organizationId: string
         status: 'PAID' | 'CANCELED'
+        settlementDate?: string
     }): Promise<FinancialTransactionEntity | null> {
         const [row] = await this.databaseClient.query<TransactionRow>(
             `
                 UPDATE financial_transactions
                 SET status = :status,
+                    transaction_date = CASE
+                        WHEN :status = 'PAID'
+                            THEN COALESCE(:settlementDate, transaction_date)
+                        ELSE transaction_date
+                    END,
                     paid_at = CASE
-                        WHEN :status = 'PAID' THEN NOW()
+                        WHEN :status = 'PAID'
+                            THEN COALESCE(
+                                CAST(:settlementDate AS DATE)::timestamptz,
+                                NOW()
+                            )
                         ELSE paid_at
                     END,
                     canceled_at = CASE
@@ -520,7 +545,7 @@ export class PostgresFinancialRepository
                     AND deleted_at IS NULL
                 RETURNING *
             `,
-            input,
+            { ...input, settlementDate: input.settlementDate ?? null },
         )
 
         return row ? this.toTransaction(row) : null
@@ -553,6 +578,103 @@ export class PostgresFinancialRepository
         )
 
         return rows.length > 0
+    }
+
+    async listObligations(
+        filters: FinancialObligationFilters,
+        pagination: { page: number; pageSize: number },
+    ): Promise<FinancialObligationPage> {
+        const { where, replacements } = this.obligationFilters(filters)
+        const joins = this.obligationJoins(filters.type)
+        const offset = (pagination.page - 1) * pagination.pageSize
+        const rows = await this.databaseClient.select<ObligationRow>(
+            `
+                SELECT
+                    transactions.*,
+                    accounts.name AS account_name,
+                    categories.name AS category_name,
+                    counterparties.name AS counterparty_name
+                FROM financial_transactions transactions
+                ${joins}
+                ${where}
+                ORDER BY transactions.due_date ASC, transactions.created_at DESC
+                LIMIT :pageSize OFFSET :offset
+            `,
+            { ...replacements, pageSize: pagination.pageSize, offset },
+        )
+        const [summary] = await this.databaseClient.select<{
+            total: string
+            pending_count: string
+            pending_amount: string
+            settled_count: string
+            settled_amount: string
+            overdue_count: string
+            overdue_amount: string
+        }>(
+            `
+                SELECT
+                    COUNT(*)::TEXT AS total,
+                    COUNT(*) FILTER (WHERE status = 'PENDING')::TEXT
+                        AS pending_count,
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE status = 'PENDING'
+                    ), 0)::NUMERIC(15, 2)::TEXT AS pending_amount,
+                    COUNT(*) FILTER (WHERE status = 'PAID')::TEXT
+                        AS settled_count,
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE status = 'PAID'
+                    ), 0)::NUMERIC(15, 2)::TEXT AS settled_amount,
+                    COUNT(*) FILTER (
+                        WHERE status = 'PENDING' AND due_date < :today
+                    )::TEXT AS overdue_count,
+                    COALESCE(SUM(amount) FILTER (
+                        WHERE status = 'PENDING' AND due_date < :today
+                    ), 0)::NUMERIC(15, 2)::TEXT AS overdue_amount
+                FROM financial_transactions transactions
+                ${where}
+            `,
+            replacements,
+        )
+
+        return {
+            items: rows.map((row) => this.toObligation(row, filters.type)),
+            total: Number(summary.total),
+            summary: {
+                pendingCount: Number(summary.pending_count),
+                pendingAmount: summary.pending_amount,
+                settledCount: Number(summary.settled_count),
+                settledAmount: summary.settled_amount,
+                overdueCount: Number(summary.overdue_count),
+                overdueAmount: summary.overdue_amount,
+            },
+        }
+    }
+
+    async findObligationById(input: {
+        id: string
+        organizationId: string
+        type: FinancialTransactionType
+        today: string
+    }): Promise<FinancialObligationEntity | null> {
+        const [row] = await this.databaseClient.select<ObligationRow>(
+            `
+                SELECT
+                    transactions.*,
+                    accounts.name AS account_name,
+                    categories.name AS category_name,
+                    counterparties.name AS counterparty_name
+                FROM financial_transactions transactions
+                ${this.obligationJoins(input.type)}
+                WHERE transactions.id = :id
+                    AND transactions.organization_id = :organizationId
+                    AND transactions.type = :type
+                    AND transactions.deleted_at IS NULL
+                LIMIT 1
+            `,
+            input,
+        )
+
+        return row ? this.toObligation(row, input.type) : null
     }
 
     async getDashboard(
@@ -622,6 +744,69 @@ export class PostgresFinancialRepository
             where: `WHERE ${clauses.join('\n AND ')}`,
             replacements,
         }
+    }
+
+    private obligationFilters(filters: FinancialObligationFilters) {
+        const clauses = [
+            'transactions.organization_id = :organizationId',
+            'transactions.type = :type',
+            'transactions.deleted_at IS NULL',
+        ]
+        const replacements: Record<string, unknown> = {
+            organizationId: filters.organizationId,
+            type: filters.type,
+            today: filters.today,
+        }
+        const optional: Array<[string, unknown, string]> = [
+            ['status', filters.status, 'transactions.status'],
+            ['accountId', filters.accountId, 'transactions.account_id'],
+            ['categoryId', filters.categoryId, 'transactions.category_id'],
+            [
+                'counterpartyId',
+                filters.counterpartyId,
+                filters.type === 'EXPENSE'
+                    ? 'transactions.supplier_id'
+                    : 'transactions.customer_id',
+            ],
+        ]
+        for (const [key, value, column] of optional) {
+            if (value !== undefined) {
+                clauses.push(`${column} = :${key}`)
+                replacements[key] = value
+            }
+        }
+        if (filters.dueDateStart) {
+            clauses.push('transactions.due_date >= :dueDateStart')
+            replacements.dueDateStart = filters.dueDateStart
+        }
+        if (filters.dueDateEnd) {
+            clauses.push('transactions.due_date <= :dueDateEnd')
+            replacements.dueDateEnd = filters.dueDateEnd
+        }
+        if (filters.overdue !== undefined) {
+            clauses.push(
+                filters.overdue
+                    ? "transactions.status = 'PENDING' AND transactions.due_date < :today"
+                    : "NOT (transactions.status = 'PENDING' AND transactions.due_date < :today)",
+            )
+        }
+        return {
+            where: `WHERE ${clauses.join('\n AND ')}`,
+            replacements,
+        }
+    }
+
+    private obligationJoins(type: FinancialTransactionType): string {
+        const table = type === 'EXPENSE' ? 'suppliers' : 'customers'
+        const foreignKey = type === 'EXPENSE' ? 'supplier_id' : 'customer_id'
+        return `
+            INNER JOIN financial_accounts accounts
+                ON accounts.id = transactions.account_id
+            INNER JOIN financial_categories categories
+                ON categories.id = transactions.category_id
+            LEFT JOIN ${table} counterparties
+                ON counterparties.id = transactions.${foreignKey}
+        `
     }
 
     private async dashboardCashFlow(query: FinancialDashboardQuery) {
@@ -912,6 +1097,24 @@ export class PostgresFinancialRepository
             createdAt: new Date(row.created_at),
             updatedAt: new Date(row.updated_at),
             deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
+        }
+    }
+
+    private toObligation(
+        row: ObligationRow,
+        type: FinancialTransactionType,
+    ): FinancialObligationEntity {
+        const transaction = this.toTransaction(row)
+        const counterpartyId =
+            type === 'EXPENSE' ? row.supplier_id : row.customer_id
+        return {
+            ...transaction,
+            account: { id: row.account_id, name: row.account_name },
+            category: { id: row.category_id, name: row.category_name },
+            counterparty:
+                counterpartyId && row.counterparty_name
+                    ? { id: counterpartyId, name: row.counterparty_name }
+                    : null,
         }
     }
 }

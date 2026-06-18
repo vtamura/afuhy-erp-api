@@ -3,6 +3,8 @@ export type {
     FinancialCategoryResponseDto,
     FinancialDashboardDueGroupResponseDto,
     FinancialDashboardResponseDto,
+    FinancialObligationListResponseDto,
+    FinancialObligationResponseDto,
     FinancialTransactionListResponseDto,
     FinancialTransactionResponseDto,
 } from './financial.response.dto'

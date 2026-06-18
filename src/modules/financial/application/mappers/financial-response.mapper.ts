@@ -8,6 +8,8 @@ import type {
     FinancialCategoryResponseDto,
     FinancialTransactionResponseDto,
 } from '../dto'
+import type { FinancialObligationEntity } from '../../domain/repositories/financial-obligation.repository'
+import type { FinancialObligationResponseDto } from '../dto'
 
 export function toFinancialAccountResponseDto(
     entity: FinancialAccountEntity,
@@ -41,5 +43,21 @@ export function toFinancialTransactionResponseDto(
         createdAt: entity.createdAt.toISOString(),
         updatedAt: entity.updatedAt.toISOString(),
         deletedAt: entity.deletedAt?.toISOString() ?? null,
+    }
+}
+
+export function toFinancialObligationResponseDto(
+    entity: FinancialObligationEntity,
+    today: string,
+): FinancialObligationResponseDto {
+    return {
+        ...toFinancialTransactionResponseDto(entity),
+        account: entity.account,
+        category: entity.category,
+        counterparty: entity.counterparty,
+        isOverdue:
+            entity.status === 'PENDING' &&
+            entity.dueDate !== null &&
+            entity.dueDate < today,
     }
 }

@@ -20,6 +20,7 @@ export class PayFinancialTransactionController extends BaseController<
         return this.useCase.execute({
             id: input.id,
             organizationId: input.authUser.organizationId ?? null,
+            settlementDate: input.settlementDate,
         })
     }
 }

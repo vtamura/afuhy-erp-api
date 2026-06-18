@@ -57,6 +57,23 @@ const transactionInput = {
         dueDate: { type: 'string', format: 'date', nullable: true },
     },
 }
+const obligationInput = {
+    type: 'object',
+    properties: {
+        accountId: { type: 'string', format: 'uuid' },
+        categoryId: { type: 'string', format: 'uuid' },
+        counterpartyId: {
+            type: 'string',
+            format: 'uuid',
+            nullable: true,
+        },
+        description: { type: 'string', maxLength: 255 },
+        notes: { type: 'string', nullable: true },
+        amount: { ...money, pattern: '^\\d{1,13}(\\.\\d{1,2})?$' },
+        transactionDate: { type: 'string', format: 'date' },
+        dueDate: { type: 'string', format: 'date' },
+    },
+}
 
 function crudPaths(input: {
     pathName: string
@@ -304,6 +321,136 @@ const transactionPaths = {
     },
 }
 
+function obligationPaths(input: {
+    pathName: 'payables' | 'receivables'
+    label: string
+    readPermission: string
+    managePermission: string
+    settlementAction: 'pay' | 'receive'
+    settlementSummary: string
+}) {
+    const base = `/financial/${input.pathName}`
+    const listParameters = [
+        {
+            name: 'status',
+            in: 'query',
+            schema: {
+                type: 'string',
+                enum: ['PENDING', 'PAID', 'CANCELED'],
+            },
+        },
+        ...['accountId', 'categoryId', 'counterpartyId'].map((name) => ({
+            name,
+            in: 'query',
+            schema: { type: 'string', format: 'uuid' },
+        })),
+        ...['dueDateStart', 'dueDateEnd'].map((name) => ({
+            name,
+            in: 'query',
+            schema: { type: 'string', format: 'date' },
+        })),
+        {
+            name: 'overdue',
+            in: 'query',
+            schema: { type: 'boolean' },
+        },
+        {
+            name: 'page',
+            in: 'query',
+            schema: { type: 'integer', minimum: 1, default: 1 },
+        },
+        {
+            name: 'pageSize',
+            in: 'query',
+            schema: {
+                type: 'integer',
+                minimum: 1,
+                maximum: 100,
+                default: 20,
+            },
+        },
+    ]
+
+    return {
+        [base]: {
+            get: {
+                ...operation({
+                    summary: `Lista ${input.label}`,
+                    permission: input.readPermission,
+                    responseSchema: {
+                        $ref: '#/components/schemas/FinancialObligationPage',
+                    },
+                }),
+                parameters: listParameters,
+            },
+            post: operation({
+                summary: `Cria ${input.label}`,
+                permission: input.managePermission,
+                requestSchema: 'CreateFinancialObligationInput',
+                responseSchema: {
+                    $ref: '#/components/schemas/FinancialObligation',
+                },
+                created: true,
+            }),
+        },
+        [`${base}/{id}`]: {
+            get: operation({
+                summary: `Busca ${input.label}`,
+                permission: input.readPermission,
+                parameters: [idParameter],
+                responseSchema: {
+                    $ref: '#/components/schemas/FinancialObligation',
+                },
+                notFound: true,
+            }),
+            patch: operation({
+                summary: `Atualiza ${input.label} pendente`,
+                permission: input.managePermission,
+                parameters: [idParameter],
+                requestSchema: 'UpdateFinancialObligationInput',
+                responseSchema: {
+                    $ref: '#/components/schemas/FinancialObligation',
+                },
+                notFound: true,
+                conflict: true,
+            }),
+            delete: operation({
+                summary: `Remove ${input.label} pendente ou cancelada`,
+                permission: input.managePermission,
+                parameters: [idParameter],
+                noContent: true,
+                notFound: true,
+                conflict: true,
+            }),
+        },
+        [`${base}/{id}/${input.settlementAction}`]: {
+            post: operation({
+                summary: input.settlementSummary,
+                permission: input.managePermission,
+                parameters: [idParameter],
+                requestSchema: 'SettleFinancialObligationInput',
+                responseSchema: {
+                    $ref: '#/components/schemas/FinancialObligation',
+                },
+                notFound: true,
+                conflict: true,
+            }),
+        },
+        [`${base}/{id}/cancel`]: {
+            post: operation({
+                summary: `Cancela ${input.label}`,
+                permission: input.managePermission,
+                parameters: [idParameter],
+                responseSchema: {
+                    $ref: '#/components/schemas/FinancialObligation',
+                },
+                notFound: true,
+                conflict: true,
+            }),
+        },
+    }
+}
+
 const dashboardPath = {
     '/financial/dashboard': {
         get: {
@@ -473,6 +620,98 @@ export const financialOpenApiDocument: OpenApiModuleDocument = {
                 },
             },
         },
+        FinancialObligation: {
+            allOf: [
+                { $ref: '#/components/schemas/FinancialTransaction' },
+                {
+                    type: 'object',
+                    required: [
+                        'account',
+                        'category',
+                        'counterparty',
+                        'isOverdue',
+                    ],
+                    properties: {
+                        account: {
+                            $ref: '#/components/schemas/FinancialReference',
+                        },
+                        category: {
+                            $ref: '#/components/schemas/FinancialReference',
+                        },
+                        counterparty: {
+                            allOf: [
+                                {
+                                    $ref: '#/components/schemas/FinancialReference',
+                                },
+                            ],
+                            nullable: true,
+                        },
+                        isOverdue: { type: 'boolean' },
+                    },
+                },
+            ],
+        },
+        FinancialReference: {
+            type: 'object',
+            required: ['id', 'name'],
+            properties: {
+                id: { type: 'string', format: 'uuid' },
+                name: { type: 'string' },
+            },
+        },
+        CreateFinancialObligationInput: {
+            ...obligationInput,
+            required: [
+                'accountId',
+                'categoryId',
+                'description',
+                'amount',
+                'transactionDate',
+                'dueDate',
+            ],
+        },
+        UpdateFinancialObligationInput: obligationInput,
+        SettleFinancialObligationInput: {
+            type: 'object',
+            required: ['settlementDate'],
+            properties: {
+                settlementDate: { type: 'string', format: 'date' },
+            },
+        },
+        FinancialObligationSummary: {
+            type: 'object',
+            properties: {
+                pendingCount: { type: 'integer' },
+                pendingAmount: money,
+                settledCount: { type: 'integer' },
+                settledAmount: money,
+                overdueCount: { type: 'integer' },
+                overdueAmount: money,
+            },
+        },
+        FinancialObligationPage: {
+            type: 'object',
+            properties: {
+                items: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/FinancialObligation',
+                    },
+                },
+                pagination: {
+                    type: 'object',
+                    properties: {
+                        page: { type: 'integer' },
+                        pageSize: { type: 'integer' },
+                        total: { type: 'integer' },
+                        totalPages: { type: 'integer' },
+                    },
+                },
+                summary: {
+                    $ref: '#/components/schemas/FinancialObligationSummary',
+                },
+            },
+        },
         FinancialDashboardCategory: {
             type: 'object',
             required: ['categoryId', 'name', 'amount', 'percentage'],
@@ -615,5 +854,21 @@ export const financialOpenApiDocument: OpenApiModuleDocument = {
             managePermission: 'financial.categories.manage',
         }),
         ...transactionPaths,
+        ...obligationPaths({
+            pathName: 'payables',
+            label: 'contas a pagar',
+            readPermission: 'financial.payables.read',
+            managePermission: 'financial.payables.manage',
+            settlementAction: 'pay',
+            settlementSummary: 'Paga conta a pagar',
+        }),
+        ...obligationPaths({
+            pathName: 'receivables',
+            label: 'contas a receber',
+            readPermission: 'financial.receivables.read',
+            managePermission: 'financial.receivables.manage',
+            settlementAction: 'receive',
+            settlementSummary: 'Recebe conta a receber',
+        }),
     },
 }

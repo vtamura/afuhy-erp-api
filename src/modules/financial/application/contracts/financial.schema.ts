@@ -47,23 +47,32 @@ const categoryPayloadSchema = z.object({
     status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
 })
 
-const transactionPayloadSchema = z
-    .object({
-        accountId: z.string().uuid(),
-        categoryId: z.string().uuid(),
-        customerId: nullableUuid,
-        supplierId: nullableUuid,
-        description: z.string().trim().min(1).max(255),
-        notes: nullableText(5000),
-        type: z.enum(['INCOME', 'EXPENSE']),
-        amount: positiveMoneySchema,
-        transactionDate: dateSchema,
-        dueDate: dateSchema
-            .nullable()
-            .optional()
-            .transform((value) => value ?? null),
+const transactionPayloadSchema = z.object({
+    accountId: z.string().uuid(),
+    categoryId: z.string().uuid(),
+    customerId: nullableUuid,
+    supplierId: nullableUuid,
+    description: z.string().trim().min(1).max(255),
+    notes: nullableText(5000),
+    type: z.enum(['INCOME', 'EXPENSE']),
+    amount: positiveMoneySchema,
+    transactionDate: dateSchema,
+    dueDate: dateSchema
+        .nullable()
+        .optional()
+        .transform((value) => value ?? null),
+})
+
+const counterpartiesDoNotOverlap = (data: {
+    customerId?: string | null
+    supplierId?: string | null
+}) => !(data.customerId && data.supplierId)
+
+export const createFinancialTransactionSchema = transactionPayloadSchema
+    .extend({
+        authUser: authUserSchema,
     })
-    .refine((data) => !(data.customerId && data.supplierId), {
+    .refine(counterpartiesDoNotOverlap, {
         message: 'Cliente e fornecedor nao podem ser informados juntos',
         path: ['customerId'],
     })
@@ -112,11 +121,6 @@ export const listFinancialCategoriesSchema = z.object({
 export const getFinancialCategorySchema = idWithAuthSchema
 export const deleteFinancialCategorySchema = idWithAuthSchema
 
-export const createFinancialTransactionSchema = transactionPayloadSchema.extend(
-    {
-        authUser: authUserSchema,
-    },
-)
 export const updateFinancialTransactionSchema = transactionPayloadSchema
     .partial()
     .extend(idWithAuthSchema.shape)
@@ -125,14 +129,92 @@ export const updateFinancialTransactionSchema = transactionPayloadSchema
             Object.keys(data).length > 0,
         'Informe ao menos um campo para atualizar',
     )
-    .refine((data) => !(data.customerId && data.supplierId), {
+    .refine(counterpartiesDoNotOverlap, {
         message: 'Cliente e fornecedor nao podem ser informados juntos',
         path: ['customerId'],
     })
 export const getFinancialTransactionSchema = idWithAuthSchema
 export const deleteFinancialTransactionSchema = idWithAuthSchema
-export const payFinancialTransactionSchema = idWithAuthSchema
+export const payFinancialTransactionSchema = idWithAuthSchema.extend({
+    settlementDate: dateSchema.optional(),
+})
 export const cancelFinancialTransactionSchema = idWithAuthSchema
+
+const obligationPayloadSchema = z.object({
+    accountId: z.string().uuid(),
+    categoryId: z.string().uuid(),
+    counterpartyId: nullableUuid,
+    description: z.string().trim().min(1).max(255),
+    notes: nullableText(5000),
+    amount: positiveMoneySchema,
+    transactionDate: dateSchema,
+    dueDate: dateSchema,
+})
+
+export const createFinancialObligationSchema = obligationPayloadSchema
+    .extend({
+        authUser: authUserSchema,
+    })
+    .refine((data) => data.dueDate >= data.transactionDate, {
+        message: 'Vencimento deve ser igual ou posterior a data do lancamento',
+        path: ['dueDate'],
+    })
+
+export const updateFinancialObligationSchema = obligationPayloadSchema
+    .partial()
+    .extend(idWithAuthSchema.shape)
+    .refine(
+        ({ id: _id, authUser: _authUser, ...data }) =>
+            Object.keys(data).length > 0,
+        'Informe ao menos um campo para atualizar',
+    )
+    .refine(
+        (data) =>
+            !data.transactionDate ||
+            !data.dueDate ||
+            data.dueDate >= data.transactionDate,
+        {
+            message:
+                'Vencimento deve ser igual ou posterior a data do lancamento',
+            path: ['dueDate'],
+        },
+    )
+export const getFinancialObligationSchema = idWithAuthSchema
+export const deleteFinancialObligationSchema = idWithAuthSchema
+export const cancelFinancialObligationSchema = idWithAuthSchema
+export const settleFinancialObligationSchema = idWithAuthSchema.extend({
+    settlementDate: dateSchema,
+})
+export const listFinancialObligationsSchema = z
+    .object({
+        authUser: authUserSchema,
+        status: z.enum(['PENDING', 'PAID', 'CANCELED']).optional(),
+        accountId: z.string().uuid().optional(),
+        categoryId: z.string().uuid().optional(),
+        counterpartyId: z.string().uuid().optional(),
+        dueDateStart: dateSchema.optional(),
+        dueDateEnd: dateSchema.optional(),
+        overdue: z
+            .union([z.literal('true'), z.literal('false'), z.boolean()])
+            .optional()
+            .transform((value) =>
+                value === undefined
+                    ? undefined
+                    : value === true || value === 'true',
+            ),
+        page: z.coerce.number().int().min(1).default(1),
+        pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    })
+    .refine(
+        (data) =>
+            !data.dueDateStart ||
+            !data.dueDateEnd ||
+            data.dueDateStart <= data.dueDateEnd,
+        {
+            message: 'Vencimento inicial deve ser anterior ao final',
+            path: ['dueDateStart'],
+        },
+    )
 
 export const listFinancialTransactionsSchema = z
     .object({

@@ -40,6 +40,7 @@ export function createFinancialModule(
         financialRouter: createFinancialHttpRouterFactory({
             financialRepository,
             financialDashboardRepository: financialRepository,
+            financialObligationRepository: financialRepository,
             financialClock: new SystemFinancialClock(),
             middlewares: {
                 authenticateAccessTokenMiddleware,

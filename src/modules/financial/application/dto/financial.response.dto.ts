@@ -111,3 +111,28 @@ export type FinancialDashboardDueGroupResponseDto = {
     expense: string
     items: FinancialTransactionResponseDto[]
 }
+
+export type FinancialObligationResponseDto = FinancialTransactionResponseDto & {
+    account: { id: string; name: string }
+    category: { id: string; name: string }
+    counterparty: { id: string; name: string } | null
+    isOverdue: boolean
+}
+
+export type FinancialObligationListResponseDto = {
+    items: FinancialObligationResponseDto[]
+    pagination: {
+        page: number
+        pageSize: number
+        total: number
+        totalPages: number
+    }
+    summary: {
+        pendingCount: number
+        pendingAmount: string
+        settledCount: number
+        settledAmount: string
+        overdueCount: number
+        overdueAmount: string
+    }
+}

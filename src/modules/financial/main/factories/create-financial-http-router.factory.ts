@@ -1,42 +1,56 @@
 import {
     CancelFinancialTransactionUseCase,
+    CancelFinancialObligationUseCase,
     CreateFinancialAccountUseCase,
     CreateFinancialCategoryUseCase,
     CreateFinancialTransactionUseCase,
+    CreateFinancialObligationUseCase,
     DeleteFinancialAccountUseCase,
     DeleteFinancialCategoryUseCase,
     DeleteFinancialTransactionUseCase,
+    DeleteFinancialObligationUseCase,
     GetFinancialAccountUseCase,
     GetFinancialCategoryUseCase,
     GetFinancialDashboardUseCase,
     GetFinancialTransactionUseCase,
+    GetFinancialObligationUseCase,
     ListFinancialAccountsUseCase,
     ListFinancialCategoriesUseCase,
     ListFinancialTransactionsUseCase,
+    ListFinancialObligationsUseCase,
     PayFinancialTransactionUseCase,
+    SettleFinancialObligationUseCase,
     UpdateFinancialAccountUseCase,
     UpdateFinancialCategoryUseCase,
     UpdateFinancialTransactionUseCase,
+    UpdateFinancialObligationUseCase,
 } from '../../application/use-cases'
 import {
     CancelFinancialTransactionController,
+    CancelFinancialObligationController,
     CreateFinancialAccountController,
     CreateFinancialCategoryController,
     CreateFinancialTransactionController,
+    CreateFinancialObligationController,
     DeleteFinancialAccountController,
     DeleteFinancialCategoryController,
     DeleteFinancialTransactionController,
+    DeleteFinancialObligationController,
     GetFinancialAccountController,
     GetFinancialCategoryController,
     GetFinancialDashboardController,
     GetFinancialTransactionController,
+    GetFinancialObligationController,
     ListFinancialAccountsController,
     ListFinancialCategoriesController,
     ListFinancialTransactionsController,
+    ListFinancialObligationsController,
     PayFinancialTransactionController,
+    SettleFinancialObligationController,
     UpdateFinancialAccountController,
     UpdateFinancialCategoryController,
     UpdateFinancialTransactionController,
+    UpdateFinancialObligationController,
 } from '../../presentation/http/controllers'
 import { createFinancialRouter } from '../../presentation/http/routes'
 import type { FinancialHttpRouterFactoryDependencies } from './financial-http-router-factory.types'
@@ -45,6 +59,62 @@ export function createFinancialHttpRouterFactory(
     deps: FinancialHttpRouterFactoryDependencies,
 ) {
     const repository = deps.financialRepository
+    const createObligationControllers = (kind: 'payable' | 'receivable') => ({
+        create: new CreateFinancialObligationController(
+            new CreateFinancialObligationUseCase(
+                repository,
+                deps.financialObligationRepository,
+                deps.financialClock,
+                kind,
+            ),
+        ),
+        list: new ListFinancialObligationsController(
+            new ListFinancialObligationsUseCase(
+                deps.financialObligationRepository,
+                deps.financialClock,
+                kind,
+            ),
+        ),
+        get: new GetFinancialObligationController(
+            new GetFinancialObligationUseCase(
+                deps.financialObligationRepository,
+                deps.financialClock,
+                kind,
+            ),
+        ),
+        update: new UpdateFinancialObligationController(
+            new UpdateFinancialObligationUseCase(
+                repository,
+                deps.financialObligationRepository,
+                deps.financialClock,
+                kind,
+            ),
+        ),
+        settle: new SettleFinancialObligationController(
+            new SettleFinancialObligationUseCase(
+                repository,
+                deps.financialObligationRepository,
+                deps.financialClock,
+                kind,
+            ),
+        ),
+        cancel: new CancelFinancialObligationController(
+            new CancelFinancialObligationUseCase(
+                repository,
+                deps.financialObligationRepository,
+                deps.financialClock,
+                kind,
+            ),
+        ),
+        delete: new DeleteFinancialObligationController(
+            new DeleteFinancialObligationUseCase(
+                repository,
+                deps.financialObligationRepository,
+                deps.financialClock,
+                kind,
+            ),
+        ),
+    })
 
     return createFinancialRouter({
         controllers: {
@@ -102,7 +172,10 @@ export function createFinancialHttpRouterFactory(
                     new UpdateFinancialTransactionUseCase(repository),
                 ),
                 pay: new PayFinancialTransactionController(
-                    new PayFinancialTransactionUseCase(repository),
+                    new PayFinancialTransactionUseCase(
+                        repository,
+                        deps.financialClock,
+                    ),
                 ),
                 cancel: new CancelFinancialTransactionController(
                     new CancelFinancialTransactionUseCase(repository),
@@ -111,6 +184,8 @@ export function createFinancialHttpRouterFactory(
                     new DeleteFinancialTransactionUseCase(repository),
                 ),
             },
+            payables: createObligationControllers('payable'),
+            receivables: createObligationControllers('receivable'),
         },
         ...deps.middlewares,
     })

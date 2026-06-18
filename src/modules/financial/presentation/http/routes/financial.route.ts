@@ -2,23 +2,30 @@ import { Router, type RequestHandler } from 'express'
 import { AUTH_PERMISSIONS } from '../../../../auth/domain/rbac/default-rbac'
 import type {
     CancelFinancialTransactionController,
+    CancelFinancialObligationController,
     CreateFinancialAccountController,
     CreateFinancialCategoryController,
     CreateFinancialTransactionController,
+    CreateFinancialObligationController,
     DeleteFinancialAccountController,
     DeleteFinancialCategoryController,
     DeleteFinancialTransactionController,
+    DeleteFinancialObligationController,
     GetFinancialAccountController,
     GetFinancialCategoryController,
     GetFinancialDashboardController,
     GetFinancialTransactionController,
+    GetFinancialObligationController,
     ListFinancialAccountsController,
     ListFinancialCategoriesController,
     ListFinancialTransactionsController,
+    ListFinancialObligationsController,
     PayFinancialTransactionController,
+    SettleFinancialObligationController,
     UpdateFinancialAccountController,
     UpdateFinancialCategoryController,
     UpdateFinancialTransactionController,
+    UpdateFinancialObligationController,
 } from '../controllers'
 
 type FinancialControllers = {
@@ -46,6 +53,18 @@ type FinancialControllers = {
         cancel: CancelFinancialTransactionController
         delete: DeleteFinancialTransactionController
     }
+    payables: FinancialObligationControllers
+    receivables: FinancialObligationControllers
+}
+
+type FinancialObligationControllers = {
+    create: CreateFinancialObligationController
+    list: ListFinancialObligationsController
+    get: GetFinancialObligationController
+    update: UpdateFinancialObligationController
+    settle: SettleFinancialObligationController
+    cancel: CancelFinancialObligationController
+    delete: DeleteFinancialObligationController
 }
 
 export function createFinancialRouter(params: {
@@ -142,7 +161,89 @@ export function createFinancialRouter(params: {
         controllers.transactions.delete.handle,
     )
 
+    registerObligationRoutes(router, {
+        path: '/financial/payables',
+        settlementAction: 'pay',
+        auth,
+        feature,
+        read: permission(AUTH_PERMISSIONS.FINANCIAL_PAYABLES_READ),
+        manage: permission(AUTH_PERMISSIONS.FINANCIAL_PAYABLES_MANAGE),
+        controllers: controllers.payables,
+    })
+    registerObligationRoutes(router, {
+        path: '/financial/receivables',
+        settlementAction: 'receive',
+        auth,
+        feature,
+        read: permission(AUTH_PERMISSIONS.FINANCIAL_RECEIVABLES_READ),
+        manage: permission(AUTH_PERMISSIONS.FINANCIAL_RECEIVABLES_MANAGE),
+        controllers: controllers.receivables,
+    })
+
     return router
+}
+
+function registerObligationRoutes(
+    router: Router,
+    params: {
+        path: string
+        settlementAction: 'pay' | 'receive'
+        auth: RequestHandler
+        feature: RequestHandler
+        read: RequestHandler
+        manage: RequestHandler
+        controllers: FinancialObligationControllers
+    },
+) {
+    router.post(
+        params.path,
+        params.auth,
+        params.manage,
+        params.feature,
+        params.controllers.create.handle,
+    )
+    router.get(
+        params.path,
+        params.auth,
+        params.read,
+        params.feature,
+        params.controllers.list.handle,
+    )
+    router.get(
+        `${params.path}/:id`,
+        params.auth,
+        params.read,
+        params.feature,
+        params.controllers.get.handle,
+    )
+    router.patch(
+        `${params.path}/:id`,
+        params.auth,
+        params.manage,
+        params.feature,
+        params.controllers.update.handle,
+    )
+    router.post(
+        `${params.path}/:id/${params.settlementAction}`,
+        params.auth,
+        params.manage,
+        params.feature,
+        params.controllers.settle.handle,
+    )
+    router.post(
+        `${params.path}/:id/cancel`,
+        params.auth,
+        params.manage,
+        params.feature,
+        params.controllers.cancel.handle,
+    )
+    router.delete(
+        `${params.path}/:id`,
+        params.auth,
+        params.manage,
+        params.feature,
+        params.controllers.delete.handle,
+    )
 }
 
 function registerCrud(

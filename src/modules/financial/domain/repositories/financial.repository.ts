@@ -125,6 +125,7 @@ export interface FinancialRepository {
         id: string
         organizationId: string
         status: Extract<FinancialTransactionStatus, 'PAID' | 'CANCELED'>
+        settlementDate?: string
     }): Promise<FinancialTransactionEntity | null>
     softDeleteTransaction(input: {
         id: string
