@@ -1,0 +1,5 @@
+export { CreateRegistryRecordUseCase } from './create-registry-record.use-case'
+export { DeleteRegistryRecordUseCase } from './delete-registry-record.use-case'
+export { GetRegistryRecordUseCase } from './get-registry-record.use-case'
+export { ListRegistryRecordsUseCase } from './list-registry-records.use-case'
+export { UpdateRegistryRecordUseCase } from './update-registry-record.use-case'

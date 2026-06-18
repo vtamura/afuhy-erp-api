@@ -1,0 +1,5 @@
+export { CreateRegistryRecordController } from './create-registry-record.controller'
+export { DeleteRegistryRecordController } from './delete-registry-record.controller'
+export { GetRegistryRecordController } from './get-registry-record.controller'
+export { ListRegistryRecordsController } from './list-registry-records.controller'
+export { UpdateRegistryRecordController } from './update-registry-record.controller'
