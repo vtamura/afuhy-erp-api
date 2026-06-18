@@ -2,6 +2,8 @@ import type { Router } from 'express'
 import { createAuthModule } from '../../modules/auth'
 import { createBillingModule } from '../../modules/billing'
 import { createExampleModule } from '../../modules/example'
+import { createFinancialModule } from '../../modules/financial'
+import { createRegistryModule } from '../../modules/registry'
 import { healthRouter } from '../../shared/presentation/http/routes/health.route'
 
 export type HttpDependencies = {
@@ -11,6 +13,8 @@ export type HttpDependencies = {
     organizationsRouter: Router
     usersRouter: Router
     billingRouter: Router
+    registryRouter: Router
+    financialRouter: Router
 }
 
 export function createHttpDependencies(): HttpDependencies {
@@ -18,6 +22,12 @@ export function createHttpDependencies(): HttpDependencies {
     const billingModule = createBillingModule()
     const authModule = createAuthModule({
         enforceUserLimitMiddleware: billingModule.enforceUserLimitMiddleware,
+    })
+    const registryModule = createRegistryModule({
+        authorizeFeatureMiddleware: billingModule.authorizeFeatureMiddleware,
+    })
+    const financialModule = createFinancialModule({
+        authorizeFeatureMiddleware: billingModule.authorizeFeatureMiddleware,
     })
 
     return {
@@ -27,5 +37,7 @@ export function createHttpDependencies(): HttpDependencies {
         organizationsRouter: authModule.organizationsRouter,
         usersRouter: authModule.usersRouter,
         billingRouter: billingModule.billingRouter,
+        registryRouter: registryModule.registryRouter,
+        financialRouter: financialModule.financialRouter,
     }
 }
