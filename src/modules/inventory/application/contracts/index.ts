@@ -1,0 +1,16 @@
+export {
+    addInventoryVariantSchema,
+    createInventoryAdjustmentSchema,
+    createInventoryMovementSchema,
+    createInventoryProductSchema,
+    deleteInventoryProductSchema,
+    deleteInventoryVariantSchema,
+    getInventoryMovementSchema,
+    getInventoryProductSchema,
+    getInventorySummarySchema,
+    listInventoryMovementsSchema,
+    listInventoryProductsSchema,
+    reverseInventoryMovementSchema,
+    updateInventoryProductSchema,
+    updateInventoryVariantSchema,
+} from './inventory.schema'

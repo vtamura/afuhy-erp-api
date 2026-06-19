@@ -42,6 +42,7 @@ export function createApp(deps: HttpDependencies): Express {
     app.use(env.API_PREFIX, deps.registryRouter)
     app.use(env.API_PREFIX, deps.financialRouter)
     app.use(env.API_PREFIX, deps.tasksRouter)
+    app.use(env.API_PREFIX, deps.inventoryRouter)
 
     registerSwagger(app)
 
