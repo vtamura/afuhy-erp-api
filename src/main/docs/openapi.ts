@@ -5,6 +5,7 @@ import { financialOpenApiDocument } from '../../modules/financial/presentation/h
 import { registryOpenApiDocument } from '../../modules/registry/presentation/http/docs/registry.openapi'
 import { tasksOpenApiDocument } from '../../modules/tasks/presentation/http/docs/tasks.openapi'
 import { inventoryOpenApiDocument } from '../../modules/inventory/presentation/http/docs/inventory.openapi'
+import { hrOpenApiDocument } from '../../modules/hr/presentation/http/docs/hr.openapi'
 import type { OpenApiModuleDocument } from './openapi.types'
 
 const moduleDocuments: OpenApiModuleDocument[] = [
@@ -14,6 +15,7 @@ const moduleDocuments: OpenApiModuleDocument[] = [
     financialOpenApiDocument,
     tasksOpenApiDocument,
     inventoryOpenApiDocument,
+    hrOpenApiDocument,
     exampleOpenApiDocument,
 ]
 
