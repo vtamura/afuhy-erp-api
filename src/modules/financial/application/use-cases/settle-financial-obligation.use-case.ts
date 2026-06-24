@@ -27,6 +27,7 @@ export class SettleFinancialObligationUseCase {
         id: string
         organizationId: string | null
         settlementDate: string
+        accountId?: string
     }): Promise<FinancialObligationResponseDto> {
         const current = await findObligationOrThrow(this.obligationRepository, {
             ...input,
@@ -43,8 +44,14 @@ export class SettleFinancialObligationUseCase {
             transactionDate: current.transactionDate,
             clock: this.clock,
         })
+        const accountId = input.accountId ?? current.accountId
+        if (!accountId) {
+            throw new ConflictError(
+                'Conta financeira e obrigatoria para liquidacao',
+            )
+        }
         const account = await this.repository.findAccountById({
-            id: current.accountId,
+            id: accountId,
             organizationId: current.organizationId,
         })
         if (!account || account.status !== 'ACTIVE') {
@@ -57,6 +64,7 @@ export class SettleFinancialObligationUseCase {
             organizationId: current.organizationId,
             status: 'PAID',
             settlementDate: input.settlementDate,
+            accountId,
         })
         if (!updated) {
             throw new NotFoundError(obligationNotFoundMessage(this.kind))

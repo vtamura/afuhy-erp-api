@@ -3,6 +3,8 @@ import type { DatabaseClient } from '../../../../shared/infrastructure/database/
 import { getDatabaseClient } from '../../../../shared/infrastructure/database/sequelize.client'
 import type {
     InventoryMovementEntity,
+    InventoryMovementDirection,
+    InventoryMovementPurpose,
     InventoryMovementType,
     InventoryProductEntity,
     InventoryStatus,
@@ -74,11 +76,16 @@ type MovementRow = {
     variant_name: string
     variant_sku: string
     type: InventoryMovementType
+    direction: InventoryMovementDirection
+    purpose: InventoryMovementPurpose
     quantity: string
     unit_cost: string
     total_cost: string
     supplier_id: string | null
     supplier_name: string | null
+    origin_type: string | null
+    origin_id: string | null
+    origin_item_id: string | null
     reason: string | null
     notes: string | null
     movement_date: Date
@@ -429,6 +436,67 @@ export class PostgresInventoryRepository implements InventoryRepository {
                 productId: variant.product_id,
                 quantity: signedQuantity,
                 unitCost,
+                purpose: 'MANUAL',
+                originType: null,
+                originId: null,
+                originItemId: null,
+                reversalOfMovementId: null,
+            })
+            return (await this.selectMovement(databaseClient, {
+                id,
+                organizationId: input.organizationId,
+            }))!
+        })
+    }
+
+    createLoanMovement(input: {
+        organizationId: string
+        variantId: string
+        purpose: 'LOAN_RELEASE' | 'LOAN_RETURN'
+        quantity: string
+        unitCost: string
+        originId: string
+        originItemId: string
+        notes: string | null
+        movementDate: Date
+        createdBy: string
+    }) {
+        return this.databaseClient.transaction(async (databaseClient) => {
+            const variant = await this.lockActiveVariant(databaseClient, input)
+            const isRelease = input.purpose === 'LOAN_RELEASE'
+            const signedQuantity = isRelease
+                ? `-${input.quantity}`
+                : input.quantity
+            if (
+                isRelease &&
+                Number(variant.current_quantity) < Number(input.quantity)
+            ) {
+                throw new ConflictError('Estoque insuficiente')
+            }
+            await this.updateBalance(databaseClient, {
+                variantId: variant.id,
+                organizationId: input.organizationId,
+                quantity: signedQuantity,
+                averageCost: variant.average_cost,
+            })
+            const id = await this.insertMovement(databaseClient, {
+                organizationId: input.organizationId,
+                productId: variant.product_id,
+                variantId: variant.id,
+                type: isRelease ? 'EXIT' : 'ENTRY',
+                quantity: signedQuantity,
+                unitCost: input.unitCost,
+                supplierId: null,
+                purpose: input.purpose,
+                originType: 'LOAN',
+                originId: input.originId,
+                originItemId: input.originItemId,
+                reason: isRelease
+                    ? 'Liberacao de emprestimo'
+                    : 'Devolucao de emprestimo',
+                notes: input.notes,
+                movementDate: input.movementDate,
+                createdBy: input.createdBy,
                 reversalOfMovementId: null,
             })
             return (await this.selectMovement(databaseClient, {
@@ -491,6 +559,10 @@ export class PostgresInventoryRepository implements InventoryRepository {
                 quantity: difference.quantity,
                 unitCost,
                 supplierId: null,
+                purpose: 'ADJUSTMENT',
+                originType: null,
+                originId: null,
+                originItemId: null,
                 reversalOfMovementId: null,
             })
             return this.selectMovement(databaseClient, {
@@ -546,6 +618,10 @@ export class PostgresInventoryRepository implements InventoryRepository {
                 quantity: inverseQuantity,
                 unitCost: original.unit_cost,
                 supplierId: original.supplier_id,
+                purpose: 'REVERSAL',
+                originType: null,
+                originId: null,
+                originItemId: null,
                 reason: input.reason,
                 notes: `Estorno do movimento ${original.id}`,
                 movementDate: input.movementDate,
@@ -892,6 +968,10 @@ export class PostgresInventoryRepository implements InventoryRepository {
             quantity: string
             unitCost: string
             supplierId: string | null
+            purpose: InventoryMovementPurpose
+            originType: string | null
+            originId: string | null
+            originItemId: string | null
             reason: string | null
             notes: string | null
             movementDate: Date
@@ -902,18 +982,25 @@ export class PostgresInventoryRepository implements InventoryRepository {
         const [row] = await databaseClient.query<{ id: string }>(
             `
                 INSERT INTO inventory_movements (
-                    organization_id, product_id, variant_id, type, quantity,
-                    unit_cost, total_cost, supplier_id, reason, notes,
+                    organization_id, product_id, variant_id, type, direction,
+                    purpose, quantity, unit_cost, total_cost, supplier_id,
+                    origin_type, origin_id, origin_item_id, reason, notes,
                     movement_date, created_by, reversal_of_movement_id
                 )
                 VALUES (
-                    :organizationId, :productId, :variantId, :type, :quantity,
+                    :organizationId, :productId, :variantId, :type,
+                    CASE
+                        WHEN CAST(:quantity AS NUMERIC) > 0 THEN 'IN'
+                        ELSE 'OUT'
+                    END,
+                    :purpose, :quantity,
                     :unitCost,
                     ABS(
                         CAST(:quantity AS NUMERIC) *
                         CAST(:unitCost AS NUMERIC)
                     ),
-                    :supplierId, :reason, :notes, :movementDate, :createdBy,
+                    :supplierId, :originType, :originId, :originItemId,
+                    :reason, :notes, :movementDate, :createdBy,
                     :reversalOfMovementId
                 )
                 RETURNING id
@@ -1072,11 +1159,16 @@ export class PostgresInventoryRepository implements InventoryRepository {
             variantName: row.variant_name,
             variantSku: row.variant_sku,
             type: row.type,
+            direction: row.direction,
+            purpose: row.purpose,
             quantity: row.quantity,
             unitCost: row.unit_cost,
             totalCost: row.total_cost,
             supplierId: row.supplier_id,
             supplierName: row.supplier_name,
+            originType: row.origin_type,
+            originId: row.origin_id,
+            originItemId: row.origin_item_id,
             reason: row.reason,
             notes: row.notes,
             movementDate: new Date(row.movement_date),

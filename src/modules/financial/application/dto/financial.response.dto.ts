@@ -26,10 +26,13 @@ export type FinancialCategoryResponseDto = {
 export type FinancialTransactionResponseDto = {
     id: string
     organizationId: string
-    accountId: string
+    accountId: string | null
     categoryId: string
     customerId: string | null
     supplierId: string | null
+    employeeId: string | null
+    originType: 'MANUAL' | 'LOAN_CHARGE'
+    originId: string | null
     description: string
     notes: string | null
     type: 'INCOME' | 'EXPENSE'
@@ -113,7 +116,7 @@ export type FinancialDashboardDueGroupResponseDto = {
 }
 
 export type FinancialObligationResponseDto = FinancialTransactionResponseDto & {
-    account: { id: string; name: string }
+    account: { id: string; name: string } | null
     category: { id: string; name: string }
     counterparty: { id: string; name: string } | null
     isOverdue: boolean

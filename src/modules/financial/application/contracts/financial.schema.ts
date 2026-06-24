@@ -137,6 +137,7 @@ export const getFinancialTransactionSchema = idWithAuthSchema
 export const deleteFinancialTransactionSchema = idWithAuthSchema
 export const payFinancialTransactionSchema = idWithAuthSchema.extend({
     settlementDate: dateSchema.optional(),
+    accountId: z.string().uuid().optional(),
 })
 export const cancelFinancialTransactionSchema = idWithAuthSchema
 
@@ -184,6 +185,7 @@ export const deleteFinancialObligationSchema = idWithAuthSchema
 export const cancelFinancialObligationSchema = idWithAuthSchema
 export const settleFinancialObligationSchema = idWithAuthSchema.extend({
     settlementDate: dateSchema,
+    accountId: z.string().uuid().optional(),
 })
 export const listFinancialObligationsSchema = z
     .object({

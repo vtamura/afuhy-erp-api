@@ -1,6 +1,13 @@
 export type InventoryUnit = 'UN' | 'KG' | 'G' | 'L' | 'ML' | 'M' | 'CM' | 'CX'
 export type InventoryStatus = 'ACTIVE' | 'INACTIVE'
 export type InventoryMovementType = 'ENTRY' | 'EXIT' | 'ADJUSTMENT'
+export type InventoryMovementDirection = 'IN' | 'OUT'
+export type InventoryMovementPurpose =
+    | 'MANUAL'
+    | 'ADJUSTMENT'
+    | 'LOAN_RELEASE'
+    | 'LOAN_RETURN'
+    | 'REVERSAL'
 
 export type InventoryVariantEntity = {
     id: string
@@ -41,11 +48,16 @@ export type InventoryMovementEntity = {
     variantName: string
     variantSku: string
     type: InventoryMovementType
+    direction: InventoryMovementDirection
+    purpose: InventoryMovementPurpose
     quantity: string
     unitCost: string
     totalCost: string
     supplierId: string | null
     supplierName: string | null
+    originType: string | null
+    originId: string | null
+    originItemId: string | null
     reason: string | null
     notes: string | null
     movementDate: Date

@@ -59,10 +59,13 @@ type CategoryRow = {
 type TransactionRow = {
     id: string
     organization_id: string
-    account_id: string
+    account_id: string | null
     category_id: string
     customer_id: string | null
     supplier_id: string | null
+    employee_id: string | null
+    origin_type: 'MANUAL' | 'LOAN_CHARGE'
+    origin_id: string | null
     description: string
     notes: string | null
     type: FinancialTransactionType
@@ -79,7 +82,7 @@ type TransactionRow = {
 }
 
 type ObligationRow = TransactionRow & {
-    account_name: string
+    account_name: string | null
     category_name: string
     counterparty_name: string | null
 }
@@ -212,6 +215,10 @@ export class PostgresFinancialRepository
                     updated_at = NOW()
                 WHERE id = :id
                     AND organization_id = :organizationId
+                    AND (
+                        :status = 'PAID'
+                        OR origin_type = 'MANUAL'
+                    )
                     AND deleted_at IS NULL
                 RETURNING id
             `,
@@ -372,6 +379,9 @@ export class PostgresFinancialRepository
                     category_id,
                     customer_id,
                     supplier_id,
+                    employee_id,
+                    origin_type,
+                    origin_id,
                     description,
                     notes,
                     type,
@@ -386,6 +396,9 @@ export class PostgresFinancialRepository
                     :categoryId,
                     :customerId,
                     :supplierId,
+                    :employeeId,
+                    :originType,
+                    :originId,
                     :description,
                     :notes,
                     :type,
@@ -396,7 +409,12 @@ export class PostgresFinancialRepository
                 )
                 RETURNING *
             `,
-            data,
+            {
+                ...data,
+                employeeId: data.employeeId ?? null,
+                originType: data.originType ?? 'MANUAL',
+                originId: data.originId ?? null,
+            },
         )
 
         return this.toTransaction(row)
@@ -489,6 +507,7 @@ export class PostgresFinancialRepository
                     category_id = :categoryId,
                     customer_id = :customerId,
                     supplier_id = :supplierId,
+                    employee_id = :employeeId,
                     description = :description,
                     notes = :notes,
                     type = :type,
@@ -499,11 +518,13 @@ export class PostgresFinancialRepository
                 WHERE id = :id
                     AND organization_id = :organizationId
                     AND status = 'PENDING'
+                    AND origin_type = 'MANUAL'
                     AND deleted_at IS NULL
                 RETURNING *
             `,
             {
                 ...input.data,
+                employeeId: input.data.employeeId ?? null,
                 id: input.id,
                 organizationId: input.organizationId,
             },
@@ -517,11 +538,17 @@ export class PostgresFinancialRepository
         organizationId: string
         status: 'PAID' | 'CANCELED'
         settlementDate?: string
+        accountId?: string
     }): Promise<FinancialTransactionEntity | null> {
         const [row] = await this.databaseClient.query<TransactionRow>(
             `
                 UPDATE financial_transactions
                 SET status = :status,
+                    account_id = CASE
+                        WHEN :status = 'PAID'
+                            THEN COALESCE(:accountId, account_id)
+                        ELSE account_id
+                    END,
                     transaction_date = CASE
                         WHEN :status = 'PAID'
                             THEN COALESCE(:settlementDate, transaction_date)
@@ -545,7 +572,11 @@ export class PostgresFinancialRepository
                     AND deleted_at IS NULL
                 RETURNING *
             `,
-            { ...input, settlementDate: input.settlementDate ?? null },
+            {
+                ...input,
+                settlementDate: input.settlementDate ?? null,
+                accountId: input.accountId ?? null,
+            },
         )
 
         return row ? this.toTransaction(row) : null
@@ -559,11 +590,16 @@ export class PostgresFinancialRepository
     }
 
     async counterpartyExists(input: {
-        type: 'customer' | 'supplier'
+        type: 'customer' | 'supplier' | 'employee'
         id: string
         organizationId: string
     }): Promise<boolean> {
-        const table = input.type === 'customer' ? 'customers' : 'suppliers'
+        const table =
+            input.type === 'customer'
+                ? 'customers'
+                : input.type === 'supplier'
+                  ? 'suppliers'
+                  : 'hr_employees'
         const rows = await this.databaseClient.select<{ id: string }>(
             `
                 SELECT id
@@ -720,6 +756,7 @@ export class PostgresFinancialRepository
             ['categoryId', 'category_id'],
             ['customerId', 'customer_id'],
             ['supplierId', 'supplier_id'],
+            ['employeeId', 'employee_id'],
             ['type', 'type'],
             ['status', 'status'],
         ]
@@ -800,7 +837,7 @@ export class PostgresFinancialRepository
         const table = type === 'EXPENSE' ? 'suppliers' : 'customers'
         const foreignKey = type === 'EXPENSE' ? 'supplier_id' : 'customer_id'
         return `
-            INNER JOIN financial_accounts accounts
+            LEFT JOIN financial_accounts accounts
                 ON accounts.id = transactions.account_id
             INNER JOIN financial_categories categories
                 ON categories.id = transactions.category_id
@@ -1021,6 +1058,10 @@ export class PostgresFinancialRepository
                 WHERE id = :id
                     AND organization_id = :organizationId
                     AND deleted_at IS NULL
+                    AND (
+                        '${table}' <> 'financial_transactions'
+                        OR origin_type = 'MANUAL'
+                    )
                 RETURNING id
             `,
             input,
@@ -1084,6 +1125,9 @@ export class PostgresFinancialRepository
             categoryId: row.category_id,
             customerId: row.customer_id,
             supplierId: row.supplier_id,
+            employeeId: row.employee_id,
+            originType: row.origin_type,
+            originId: row.origin_id,
             description: row.description,
             notes: row.notes,
             type: row.type,
@@ -1109,7 +1153,10 @@ export class PostgresFinancialRepository
             type === 'EXPENSE' ? row.supplier_id : row.customer_id
         return {
             ...transaction,
-            account: { id: row.account_id, name: row.account_name },
+            account:
+                row.account_id && row.account_name
+                    ? { id: row.account_id, name: row.account_name }
+                    : null,
             category: { id: row.category_id, name: row.category_name },
             counterparty:
                 counterpartyId && row.counterparty_name

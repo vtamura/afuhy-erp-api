@@ -2,6 +2,7 @@ export type FinancialResourceStatus = 'ACTIVE' | 'INACTIVE'
 export type FinancialAccountType = 'CASH' | 'BANK' | 'DIGITAL_WALLET'
 export type FinancialTransactionType = 'INCOME' | 'EXPENSE'
 export type FinancialTransactionStatus = 'PENDING' | 'PAID' | 'CANCELED'
+export type FinancialTransactionOriginType = 'MANUAL' | 'LOAN_CHARGE'
 
 export type FinancialAccountEntity = {
     id: string
@@ -31,10 +32,13 @@ export type FinancialCategoryEntity = {
 export type FinancialTransactionEntity = {
     id: string
     organizationId: string
-    accountId: string
+    accountId: string | null
     categoryId: string
     customerId: string | null
     supplierId: string | null
+    employeeId: string | null
+    originType: FinancialTransactionOriginType
+    originId: string | null
     description: string
     notes: string | null
     type: FinancialTransactionType

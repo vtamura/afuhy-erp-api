@@ -7,10 +7,13 @@ module.exports = {
             CREATE TABLE financial_transactions (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 organization_id UUID NOT NULL REFERENCES organizations(id),
-                account_id UUID NOT NULL REFERENCES financial_accounts(id),
+                account_id UUID REFERENCES financial_accounts(id),
                 category_id UUID NOT NULL REFERENCES financial_categories(id),
                 customer_id UUID REFERENCES customers(id),
                 supplier_id UUID REFERENCES suppliers(id),
+                employee_id UUID,
+                origin_type VARCHAR(40) NOT NULL DEFAULT 'MANUAL',
+                origin_id UUID,
                 description VARCHAR(255) NOT NULL,
                 notes TEXT,
                 type VARCHAR(20) NOT NULL,
@@ -28,10 +31,20 @@ module.exports = {
                     CHECK (type IN ('INCOME', 'EXPENSE')),
                 CONSTRAINT financial_transactions_status_check
                     CHECK (status IN ('PENDING', 'PAID', 'CANCELED')),
+                CONSTRAINT financial_transactions_origin_type_check
+                    CHECK (origin_type IN ('MANUAL', 'LOAN_CHARGE')),
                 CONSTRAINT financial_transactions_amount_positive_check
                     CHECK (amount > 0),
+                CONSTRAINT financial_transactions_paid_account_check
+                    CHECK (status <> 'PAID' OR account_id IS NOT NULL),
                 CONSTRAINT financial_transactions_counterparty_check
-                    CHECK (NOT (customer_id IS NOT NULL AND supplier_id IS NOT NULL))
+                    CHECK (
+                        (
+                            CASE WHEN customer_id IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN supplier_id IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN employee_id IS NOT NULL THEN 1 ELSE 0 END
+                        ) <= 1
+                    )
             );
 
             CREATE INDEX financial_transactions_organization_id_idx
@@ -50,6 +63,14 @@ module.exports = {
             CREATE INDEX financial_transactions_supplier_id_idx
                 ON financial_transactions (supplier_id)
                 WHERE supplier_id IS NOT NULL;
+
+            CREATE INDEX financial_transactions_employee_id_idx
+                ON financial_transactions (employee_id)
+                WHERE employee_id IS NOT NULL;
+
+            CREATE INDEX financial_transactions_origin_idx
+                ON financial_transactions (organization_id, origin_type, origin_id)
+                WHERE origin_id IS NOT NULL;
 
             CREATE INDEX financial_transactions_created_by_idx
                 ON financial_transactions (created_by);

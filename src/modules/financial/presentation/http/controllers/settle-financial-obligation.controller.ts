@@ -23,6 +23,7 @@ export class SettleFinancialObligationController extends BaseController<
             id: input.id,
             organizationId: input.authUser.organizationId ?? null,
             settlementDate: input.settlementDate,
+            accountId: input.accountId,
         })
     }
 }

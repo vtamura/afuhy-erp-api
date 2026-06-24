@@ -38,18 +38,25 @@ export async function validateTransactionReferences(
     repository: FinancialRepository,
     input: FinancialTransactionData,
 ): Promise<void> {
-    if (input.customerId && input.supplierId) {
-        throw new BadRequestError(
-            'Cliente e fornecedor nao podem ser informados juntos',
-        )
+    const counterpartyCount = [
+        input.customerId,
+        input.supplierId,
+        input.employeeId,
+    ].filter(Boolean).length
+    if (counterpartyCount > 1) {
+        throw new BadRequestError('Informe no maximo uma contraparte')
     }
 
-    const account = await repository.findAccountById({
-        id: input.accountId,
-        organizationId: input.organizationId,
-    })
-    if (!account || account.status !== 'ACTIVE') {
-        throw new NotFoundError('Conta financeira ativa nao encontrada')
+    if (input.accountId) {
+        const account = await repository.findAccountById({
+            id: input.accountId,
+            organizationId: input.organizationId,
+        })
+        if (!account || account.status !== 'ACTIVE') {
+            throw new NotFoundError('Conta financeira ativa nao encontrada')
+        }
+    } else if ((input.originType ?? 'MANUAL') === 'MANUAL') {
+        throw new BadRequestError('Conta financeira e obrigatoria')
     }
 
     const category = await repository.findCategoryById({
@@ -85,5 +92,16 @@ export async function validateTransactionReferences(
         }))
     ) {
         throw new NotFoundError('Fornecedor ativo nao encontrado')
+    }
+
+    if (
+        input.employeeId &&
+        !(await repository.counterpartyExists({
+            type: 'employee',
+            id: input.employeeId,
+            organizationId: input.organizationId,
+        }))
+    ) {
+        throw new NotFoundError('Funcionario ativo nao encontrado')
     }
 }

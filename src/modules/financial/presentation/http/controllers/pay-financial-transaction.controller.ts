@@ -21,6 +21,7 @@ export class PayFinancialTransactionController extends BaseController<
             id: input.id,
             organizationId: input.authUser.organizationId ?? null,
             settlementDate: input.settlementDate,
+            accountId: input.accountId,
         })
     }
 }

@@ -7,7 +7,7 @@ import type {
 export type FinancialObligationKind = 'payable' | 'receivable'
 
 export type FinancialObligationEntity = FinancialTransactionEntity & {
-    account: { id: string; name: string }
+    account: { id: string; name: string } | null
     category: { id: string; name: string }
     counterparty: { id: string; name: string } | null
 }

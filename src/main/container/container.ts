@@ -7,6 +7,7 @@ import { createRegistryModule } from '../../modules/registry'
 import { createTasksModule } from '../../modules/tasks'
 import { createInventoryModule } from '../../modules/inventory'
 import { createHrModule } from '../../modules/hr'
+import { createLoansModule } from '../../modules/loans'
 import { healthRouter } from '../../shared/presentation/http/routes/health.route'
 
 export type HttpDependencies = {
@@ -21,6 +22,7 @@ export type HttpDependencies = {
     tasksRouter: Router
     inventoryRouter: Router
     hrRouter: Router
+    loansRouter: Router
 }
 
 export function createHttpDependencies(): HttpDependencies {
@@ -44,6 +46,9 @@ export function createHttpDependencies(): HttpDependencies {
     const hrModule = createHrModule({
         authorizeFeatureMiddleware: billingModule.authorizeFeatureMiddleware,
     })
+    const loansModule = createLoansModule({
+        authorizeFeatureMiddleware: billingModule.authorizeFeatureMiddleware,
+    })
 
     return {
         healthRouter,
@@ -57,5 +62,6 @@ export function createHttpDependencies(): HttpDependencies {
         tasksRouter: tasksModule.tasksRouter,
         inventoryRouter: inventoryModule.inventoryRouter,
         hrRouter: hrModule.hrRouter,
+        loansRouter: loansModule.loansRouter,
     }
 }

@@ -4,6 +4,7 @@ import type {
     FinancialCategoryEntity,
     FinancialResourceStatus,
     FinancialTransactionEntity,
+    FinancialTransactionOriginType,
     FinancialTransactionStatus,
     FinancialTransactionSummary,
     FinancialTransactionType,
@@ -26,10 +27,13 @@ export type FinancialCategoryData = {
 
 export type FinancialTransactionData = {
     organizationId: string
-    accountId: string
+    accountId: string | null
     categoryId: string
     customerId: string | null
     supplierId: string | null
+    employeeId?: string | null
+    originType?: FinancialTransactionOriginType
+    originId?: string | null
     description: string
     notes: string | null
     type: FinancialTransactionType
@@ -45,6 +49,7 @@ export type FinancialTransactionFilters = {
     categoryId?: string
     customerId?: string
     supplierId?: string
+    employeeId?: string
     type?: FinancialTransactionType
     status?: FinancialTransactionStatus
     startDate?: string
@@ -126,13 +131,14 @@ export interface FinancialRepository {
         organizationId: string
         status: Extract<FinancialTransactionStatus, 'PAID' | 'CANCELED'>
         settlementDate?: string
+        accountId?: string
     }): Promise<FinancialTransactionEntity | null>
     softDeleteTransaction(input: {
         id: string
         organizationId: string
     }): Promise<boolean>
     counterpartyExists(input: {
-        type: 'customer' | 'supplier'
+        type: 'customer' | 'supplier' | 'employee'
         id: string
         organizationId: string
     }): Promise<boolean>

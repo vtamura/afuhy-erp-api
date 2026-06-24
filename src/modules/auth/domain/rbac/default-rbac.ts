@@ -23,6 +23,8 @@ export const AUTH_PERMISSIONS = {
     INVENTORY_MOVEMENTS_READ: 'inventory.movements.read',
     INVENTORY_MOVEMENTS_MANAGE: 'inventory.movements.manage',
     INVENTORY_SUMMARY_READ: 'inventory.summary.read',
+    LOANS_READ: 'loans.loans.read',
+    LOANS_MANAGE: 'loans.loans.manage',
     FINANCIAL_ACCOUNTS_READ: 'financial.accounts.read',
     FINANCIAL_ACCOUNTS_MANAGE: 'financial.accounts.manage',
     FINANCIAL_CATEGORIES_READ: 'financial.categories.read',
@@ -93,6 +95,8 @@ export const DEFAULT_ORGANIZATION_ROLES = [
             AUTH_PERMISSIONS.INVENTORY_MOVEMENTS_READ,
             AUTH_PERMISSIONS.INVENTORY_MOVEMENTS_MANAGE,
             AUTH_PERMISSIONS.INVENTORY_SUMMARY_READ,
+            AUTH_PERMISSIONS.LOANS_READ,
+            AUTH_PERMISSIONS.LOANS_MANAGE,
         ],
     },
     {
@@ -114,6 +118,7 @@ export const DEFAULT_ORGANIZATION_ROLES = [
             AUTH_PERMISSIONS.INVENTORY_PRODUCTS_READ,
             AUTH_PERMISSIONS.INVENTORY_MOVEMENTS_READ,
             AUTH_PERMISSIONS.INVENTORY_SUMMARY_READ,
+            AUTH_PERMISSIONS.LOANS_READ,
         ],
     },
 ] as const

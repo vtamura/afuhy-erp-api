@@ -1,5 +1,6 @@
 import type {
     InventoryMovementEntity,
+    InventoryMovementPurpose,
     InventoryMovementType,
     InventoryProductEntity,
     InventoryStatus,
@@ -112,6 +113,21 @@ export interface InventoryRepository {
         unitCost: string | null
         supplierId: string | null
         reason: string | null
+        notes: string | null
+        movementDate: Date
+        createdBy: string
+    }): Promise<InventoryMovementEntity>
+    createLoanMovement(input: {
+        organizationId: string
+        variantId: string
+        purpose: Extract<
+            InventoryMovementPurpose,
+            'LOAN_RELEASE' | 'LOAN_RETURN'
+        >
+        quantity: string
+        unitCost: string
+        originId: string
+        originItemId: string
         notes: string | null
         movementDate: Date
         createdBy: string
