@@ -7,18 +7,26 @@ import {
 import type { AuthUser } from '../../../../shared/application/contracts'
 import type { PlanCode } from '../../domain/entities/billing.entity'
 import type { BillingRepository } from '../../domain/repositories/billing.repository'
+import {
+    noopAuditLogger,
+    type AuditLogger,
+} from '../../../audit/application/services/audit.service'
 import type { StripeGateway } from '../ports/stripe-gateway'
 import type { StripeSessionResponseDto } from '../dto'
 
 type Input = {
     planCode: PlanCode
     authUser: AuthUser
+    requestId?: string | null
+    ipAddress?: string | null
+    userAgent?: string | null
 }
 
 export class CreateStripeCheckoutSessionUseCase {
     constructor(
         private readonly billingRepository: BillingRepository,
         private readonly stripeGateway: StripeGateway,
+        private readonly auditLogger: AuditLogger = noopAuditLogger,
     ) {}
 
     async execute(input: Input): Promise<StripeSessionResponseDto> {
@@ -44,6 +52,24 @@ export class CreateStripeCheckoutSessionUseCase {
             cancelUrl: env.STRIPE_CANCEL_URL,
             organizationId,
             planCode: input.planCode,
+        })
+
+        await this.auditLogger.log({
+            organizationId,
+            requestId: input.requestId ?? null,
+            actorType: 'USER',
+            actorUserId: input.authUser.userId,
+            action: 'CREATE',
+            module: 'billing',
+            entityType: 'stripe_checkout_session',
+            entityId: null,
+            summary: 'Sessao Stripe Checkout criada',
+            metadata: {
+                planCode: input.planCode,
+                stripeCustomerId: profile.stripeCustomerId,
+            },
+            ipAddress: input.ipAddress ?? null,
+            userAgent: input.userAgent ?? null,
         })
 
         return { url }

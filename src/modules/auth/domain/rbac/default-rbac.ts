@@ -26,6 +26,7 @@ export const AUTH_PERMISSIONS = {
     LOANS_READ: 'loans.loans.read',
     LOANS_MANAGE: 'loans.loans.manage',
     REPORTS_DASHBOARD_READ: 'reports.dashboard.read',
+    AUDIT_LOGS_READ: 'audit.logs.read',
     FINANCIAL_ACCOUNTS_READ: 'financial.accounts.read',
     FINANCIAL_ACCOUNTS_MANAGE: 'financial.accounts.manage',
     FINANCIAL_CATEGORIES_READ: 'financial.categories.read',

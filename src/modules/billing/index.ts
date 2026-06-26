@@ -1,4 +1,6 @@
 import { getDatabaseClient } from '../../shared/infrastructure/database/sequelize.client'
+import { AuditService } from '../audit/application/services/audit.service'
+import { PostgresAuditRepository } from '../audit/infrastructure/repositories/postgres-audit.repository'
 import { PostgresOrganizationUserRepository } from '../auth/infrastructure/repositories/postgres-organization-user.repository'
 import { PostgresRoleRepository } from '../auth/infrastructure/repositories/postgres-role.repository'
 import { PostgresSessionRepository } from '../auth/infrastructure/repositories/postgres-session.repository'
@@ -33,6 +35,9 @@ export type BillingModule = {
 export function createBillingModule(): BillingModule {
     const databaseClient = getDatabaseClient()
     const billingRepository = new PostgresBillingRepository(databaseClient)
+    const auditLogger = new AuditService(
+        new PostgresAuditRepository(databaseClient),
+    )
     const stripeGateway = new StripeSdkGateway()
     const userRepository = new PostgresUserRepository(databaseClient)
     const sessionRepository = new PostgresSessionRepository(databaseClient)
@@ -61,6 +66,7 @@ export function createBillingModule(): BillingModule {
         billingRouter: createBillingHttpRouterFactory({
             billingRepository,
             stripeGateway,
+            auditLogger,
             middlewares: {
                 authenticateAccessTokenMiddleware,
                 authorizePermissionMiddleware,
@@ -69,6 +75,7 @@ export function createBillingModule(): BillingModule {
         stripeWebhookRouter: createStripeWebhookHttpRouterFactory({
             billingRepository,
             stripeGateway,
+            auditLogger,
             middlewares: {
                 authenticateAccessTokenMiddleware,
                 authorizePermissionMiddleware,

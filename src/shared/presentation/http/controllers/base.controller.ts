@@ -118,9 +118,23 @@ export abstract class BaseController<
             cookies: req.cookies,
             headers: req.headers,
             authUser: req.authUser,
+            requestId: req.requestId,
+            ipAddress: this.extractIpAddress(req),
+            userAgent: req.headers['user-agent'],
             attributes: req.attributes,
             attributeExpression,
         }
+    }
+
+    private extractIpAddress(req: Request): string | undefined {
+        const forwardedFor = req.headers['x-forwarded-for']
+
+        if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+            return forwardedFor.split(',')[0]?.trim()
+        }
+
+        return (req as unknown as { socket?: { remoteAddress?: string } })
+            .socket?.remoteAddress
     }
 
     private extractAttributeExpression(

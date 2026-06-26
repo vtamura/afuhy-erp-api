@@ -23,7 +23,7 @@ import type { BillingHttpRouterFactoryDependencies } from './billing-http-router
 export function createBillingHttpRouterFactory(
     deps: BillingHttpRouterFactoryDependencies,
 ) {
-    const { billingRepository, stripeGateway } = deps
+    const { auditLogger, billingRepository, stripeGateway } = deps
     const { authenticateAccessTokenMiddleware, authorizePermissionMiddleware } =
         deps.middlewares
 
@@ -32,11 +32,19 @@ export function createBillingHttpRouterFactory(
         billingRepository,
     )
     const setOrganizationSubscriptionUseCase =
-        new SetOrganizationSubscriptionUseCase(billingRepository)
+        new SetOrganizationSubscriptionUseCase(billingRepository, auditLogger)
     const createStripeCheckoutSessionUseCase =
-        new CreateStripeCheckoutSessionUseCase(billingRepository, stripeGateway)
+        new CreateStripeCheckoutSessionUseCase(
+            billingRepository,
+            stripeGateway,
+            auditLogger,
+        )
     const createStripePortalSessionUseCase =
-        new CreateStripePortalSessionUseCase(billingRepository, stripeGateway)
+        new CreateStripePortalSessionUseCase(
+            billingRepository,
+            stripeGateway,
+            auditLogger,
+        )
 
     return createBillingRouter({
         listPlansController: new ListPlansController(listPlansUseCase),
@@ -66,6 +74,7 @@ export function createStripeWebhookHttpRouterFactory(
     const handleStripeWebhookUseCase = new HandleStripeWebhookUseCase(
         deps.billingRepository,
         deps.stripeGateway,
+        deps.auditLogger,
     )
 
     return createStripeWebhookRouter({

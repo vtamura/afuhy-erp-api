@@ -27,6 +27,10 @@ export class SetOrganizationSubscriptionController extends BaseController<
             status: input.status,
             startsAt: input.startsAt,
             endsAt: input.endsAt,
+            requestId: input.requestId,
+            ipAddress: input.ipAddress,
+            userAgent: input.userAgent,
+            authUser: input.authUser,
         })
     }
 }

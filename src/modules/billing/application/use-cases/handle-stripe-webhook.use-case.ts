@@ -13,6 +13,10 @@ import type {
     StripeSubscriptionSnapshot,
     StripeWebhookEvent,
 } from '../ports/stripe-gateway'
+import {
+    noopAuditLogger,
+    type AuditLogger,
+} from '../../../audit/application/services/audit.service'
 
 type Input = {
     payload: Buffer
@@ -23,6 +27,7 @@ export class HandleStripeWebhookUseCase {
     constructor(
         private readonly billingRepository: BillingRepository,
         private readonly stripeGateway: StripeGateway,
+        private readonly auditLogger: AuditLogger = noopAuditLogger,
     ) {}
 
     async execute(input: Input): Promise<void> {
@@ -144,7 +149,7 @@ export class HandleStripeWebhookUseCase {
                 },
             })
 
-            await repository.syncStripeSubscription({
+            const subscription = await repository.syncStripeSubscription({
                 organizationId,
                 planCode,
                 stripeCustomerId: snapshot.customerId,
@@ -156,6 +161,32 @@ export class HandleStripeWebhookUseCase {
                 currentPeriodStart: snapshot.currentPeriodStart,
                 currentPeriodEnd: snapshot.currentPeriodEnd,
                 cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd,
+            })
+
+            await this.auditLogger.log({
+                organizationId,
+                actorType: 'STRIPE',
+                actorUserId: null,
+                action: 'WEBHOOK_PROCESSED',
+                module: 'billing',
+                entityType: 'subscription',
+                entityId: subscription.id,
+                summary: 'Webhook Stripe processado',
+                changes: {
+                    after: {
+                        planCode,
+                        status: subscription.status,
+                        source: subscription.source,
+                        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+                    },
+                },
+                metadata: {
+                    stripeEventId: event.id,
+                    stripeEventType: event.type,
+                    stripeCustomerId: snapshot.customerId,
+                    stripeSubscriptionId: snapshot.id,
+                    stripePriceId: snapshot.priceId,
+                },
             })
         })
     }

@@ -8,4 +8,7 @@ export const setOrganizationSubscriptionSchema = z.object({
     startsAt: z.string().datetime().optional(),
     endsAt: z.string().datetime().nullable().optional(),
     authUser: authUserSchema,
+    requestId: z.string().uuid().nullable().optional(),
+    ipAddress: z.string().nullable().optional(),
+    userAgent: z.string().nullable().optional(),
 })

@@ -24,6 +24,9 @@ export class CreateStripeCheckoutSessionController extends BaseController<
         return this.createStripeCheckoutSessionUseCase.execute({
             planCode: input.planCode,
             authUser: input.authUser,
+            requestId: input.requestId,
+            ipAddress: input.ipAddress,
+            userAgent: input.userAgent,
         })
     }
 }

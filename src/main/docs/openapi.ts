@@ -8,6 +8,7 @@ import { inventoryOpenApiDocument } from '../../modules/inventory/presentation/h
 import { hrOpenApiDocument } from '../../modules/hr/presentation/http/docs/hr.openapi'
 import { loansOpenApiDocument } from '../../modules/loans/presentation/http/docs/loans.openapi'
 import { reportsOpenApiDocument } from '../../modules/reports/presentation/http/docs/reports.openapi'
+import { auditOpenApiDocument } from '../../modules/audit/presentation/http/docs/audit.openapi'
 import type { OpenApiModuleDocument } from './openapi.types'
 
 const moduleDocuments: OpenApiModuleDocument[] = [
@@ -20,6 +21,7 @@ const moduleDocuments: OpenApiModuleDocument[] = [
     hrOpenApiDocument,
     loansOpenApiDocument,
     reportsOpenApiDocument,
+    auditOpenApiDocument,
     exampleOpenApiDocument,
 ]
 

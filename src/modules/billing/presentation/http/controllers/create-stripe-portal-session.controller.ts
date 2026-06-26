@@ -23,6 +23,9 @@ export class CreateStripePortalSessionController extends BaseController<
     ): Promise<StripeSessionResponseDto> {
         return this.createStripePortalSessionUseCase.execute({
             authUser: input.authUser,
+            requestId: input.requestId,
+            ipAddress: input.ipAddress,
+            userAgent: input.userAgent,
         })
     }
 }
