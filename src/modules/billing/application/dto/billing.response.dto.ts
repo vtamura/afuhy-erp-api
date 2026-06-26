@@ -20,9 +20,17 @@ export type SubscriptionResponseDto = {
     id: string
     organizationId: string
     plan: PlanResponseDto
+    source: string
     status: string
     startsAt: string
     endsAt: string | null
+    currentPeriodStart: string | null
+    currentPeriodEnd: string | null
+    cancelAtPeriodEnd: boolean
     createdAt: string
     updatedAt: string
+}
+
+export type StripeSessionResponseDto = {
+    url: string
 }

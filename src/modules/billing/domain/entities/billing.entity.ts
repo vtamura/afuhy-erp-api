@@ -6,6 +6,10 @@ export type SubscriptionStatus =
     | 'CANCELED'
     | 'EXPIRED'
 
+export type SubscriptionSource = 'MANUAL' | 'STRIPE'
+
+export type StripeEventStatus = 'PROCESSING' | 'PROCESSED' | 'FAILED'
+
 export type FeatureEntity = {
     id: string
     code: string
@@ -30,9 +34,36 @@ export type SubscriptionEntity = {
     plan: PlanEntity
     stripeCustomerId: string | null
     stripeSubscriptionId: string | null
+    stripePriceId: string | null
+    source: SubscriptionSource
     status: SubscriptionStatus
     startsAt: Date
     endsAt: Date | null
+    currentPeriodStart: Date | null
+    currentPeriodEnd: Date | null
+    cancelAtPeriodEnd: boolean
     createdAt: Date
     updatedAt: Date
+}
+
+export type BillingProfileEntity = {
+    id: string
+    organizationId: string
+    stripeCustomerId: string
+    billingEmail: string | null
+    metadata: Record<string, unknown>
+    createdAt: Date
+    updatedAt: Date
+}
+
+export type StripeEventEntity = {
+    id: string
+    stripeEventId: string
+    type: string
+    apiVersion: string | null
+    livemode: boolean
+    status: StripeEventStatus
+    receivedAt: Date
+    processedAt: Date | null
+    error: string | null
 }

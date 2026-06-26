@@ -1,4 +1,4 @@
-import { NotFoundError } from '../../../../shared/domain/errors'
+import { ConflictError, NotFoundError } from '../../../../shared/domain/errors'
 import type {
     BillingRepository,
     SetOrganizationSubscriptionInput,
@@ -24,6 +24,17 @@ export class SetOrganizationSubscriptionUseCase {
 
         if (!plan) {
             throw new NotFoundError('Plano nao encontrado')
+        }
+
+        const currentSubscription =
+            await this.billingRepository.findCurrentSubscriptionByOrganization(
+                input.organizationId,
+            )
+
+        if (currentSubscription?.source === 'STRIPE') {
+            throw new ConflictError(
+                'Assinatura Stripe ativa nao pode ser sobrescrita manualmente',
+            )
         }
 
         const subscription =

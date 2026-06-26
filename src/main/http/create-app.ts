@@ -2,6 +2,7 @@ import express, {
     type Express,
     type NextFunction,
     type Request,
+    type RequestHandler,
     type Response,
 } from 'express'
 import cors from 'cors'
@@ -16,6 +17,11 @@ import {
 } from '../../shared/infrastructure/logger/logger'
 
 const logger = createLogger({ component: 'http' })
+const rawBodyParser = (
+    express as unknown as {
+        raw: (options: { type: string }) => RequestHandler
+    }
+).raw
 
 export function createApp(deps: HttpDependencies): Express {
     const app = express()
@@ -27,6 +33,11 @@ export function createApp(deps: HttpDependencies): Express {
         }),
     )
     app.use(cookieParser())
+    app.use(
+        `${env.API_PREFIX}/billing/stripe/webhook`,
+        rawBodyParser({ type: 'application/json' }),
+        deps.stripeWebhookRouter,
+    )
     app.use(
         express.json({
             limit: '512mb',

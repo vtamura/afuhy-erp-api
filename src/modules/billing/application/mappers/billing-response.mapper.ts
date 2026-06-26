@@ -40,9 +40,14 @@ export function toSubscriptionResponseDto(
         id: subscription.id,
         organizationId: subscription.organizationId,
         plan: toPlanResponseDto(subscription.plan),
+        source: subscription.source,
         status: subscription.status,
         startsAt: subscription.startsAt.toISOString(),
         endsAt: subscription.endsAt?.toISOString() ?? null,
+        currentPeriodStart:
+            subscription.currentPeriodStart?.toISOString() ?? null,
+        currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
         createdAt: subscription.createdAt.toISOString(),
         updatedAt: subscription.updatedAt.toISOString(),
     }

@@ -53,6 +53,14 @@ const envSchema = z.object({
         .union([z.literal('true'), z.literal('false')])
         .default('false')
         .transform((value) => value === 'true'),
+    STRIPE_PUBLISHABLE_KEY: z.string().default(''),
+    STRIPE_SECRET_KEY: z.string().default(''),
+    STRIPE_WEBHOOK_SECRET: z.string().default(''),
+    STRIPE_PRICE_STARTER_MONTHLY: z.string().default(''),
+    STRIPE_PRICE_PROFESSIONAL_MONTHLY: z.string().default(''),
+    STRIPE_SUCCESS_URL: z.string().url().default('http://localhost:3000'),
+    STRIPE_CANCEL_URL: z.string().url().default('http://localhost:3000'),
+    STRIPE_PORTAL_RETURN_URL: z.string().url().default('http://localhost:3000'),
 })
 
 export type Env = z.infer<typeof envSchema>

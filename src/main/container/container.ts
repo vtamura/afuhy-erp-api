@@ -18,6 +18,7 @@ export type HttpDependencies = {
     organizationsRouter: Router
     usersRouter: Router
     billingRouter: Router
+    stripeWebhookRouter: Router
     registryRouter: Router
     financialRouter: Router
     tasksRouter: Router
@@ -62,6 +63,7 @@ export function createHttpDependencies(): HttpDependencies {
         organizationsRouter: authModule.organizationsRouter,
         usersRouter: authModule.usersRouter,
         billingRouter: billingModule.billingRouter,
+        stripeWebhookRouter: billingModule.stripeWebhookRouter,
         registryRouter: registryModule.registryRouter,
         financialRouter: financialModule.financialRouter,
         tasksRouter: tasksModule.tasksRouter,

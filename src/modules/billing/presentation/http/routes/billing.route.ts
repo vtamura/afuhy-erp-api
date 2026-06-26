@@ -1,7 +1,10 @@
 import { Router, type RequestHandler } from 'express'
 import { AUTH_PERMISSIONS } from '../../../../auth/domain/rbac/default-rbac'
 import type {
+    CreateStripeCheckoutSessionController,
+    CreateStripePortalSessionController,
     GetCurrentSubscriptionController,
+    HandleStripeWebhookController,
     ListPlansController,
     SetOrganizationSubscriptionController,
 } from '../controllers'
@@ -10,6 +13,8 @@ type CreateBillingRouterParams = {
     listPlansController: ListPlansController
     getCurrentSubscriptionController: GetCurrentSubscriptionController
     setOrganizationSubscriptionController: SetOrganizationSubscriptionController
+    createStripeCheckoutSessionController: CreateStripeCheckoutSessionController
+    createStripePortalSessionController: CreateStripePortalSessionController
     authenticateAccessTokenMiddleware: RequestHandler
     authorizePermissionMiddleware: (
         permissionCode: string,
@@ -21,6 +26,8 @@ export function createBillingRouter({
     listPlansController,
     getCurrentSubscriptionController,
     setOrganizationSubscriptionController,
+    createStripeCheckoutSessionController,
+    createStripePortalSessionController,
     authenticateAccessTokenMiddleware,
     authorizePermissionMiddleware,
 }: CreateBillingRouterParams): Router {
@@ -41,6 +48,30 @@ export function createBillingRouter({
         }),
         setOrganizationSubscriptionController.handle,
     )
+    router.post(
+        '/billing/stripe/checkout-session',
+        authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.BILLING_MANAGE),
+        createStripeCheckoutSessionController.handle,
+    )
+    router.post(
+        '/billing/stripe/customer-portal',
+        authenticateAccessTokenMiddleware,
+        authorizePermissionMiddleware(AUTH_PERMISSIONS.BILLING_MANAGE),
+        createStripePortalSessionController.handle,
+    )
+
+    return router
+}
+
+export function createStripeWebhookRouter({
+    handleStripeWebhookController,
+}: {
+    handleStripeWebhookController: HandleStripeWebhookController
+}): Router {
+    const router = Router()
+
+    router.post('/', handleStripeWebhookController.handle)
 
     return router
 }

@@ -7,13 +7,21 @@ import { JwtTokenService } from '../auth/infrastructure/security/jwt-token.servi
 import { createAuthenticateAccessTokenMiddleware } from '../auth/presentation/http/middlewares/authenticate-access-token.middleware'
 import { createAuthorizePermissionMiddleware } from '../auth/presentation/http/middlewares/authorize-permission.middleware'
 import { PostgresBillingRepository } from './infrastructure/repositories/postgres-billing.repository'
-import { createBillingHttpRouterFactory } from './main/factories'
+import { StripeSdkGateway } from './infrastructure/gateways/stripe-sdk.gateway'
+import {
+    createBillingHttpRouterFactory,
+    createStripeWebhookHttpRouterFactory,
+} from './main/factories'
 import { createAuthorizeFeatureMiddleware } from './presentation/http/middlewares/authorize-feature.middleware'
 import { createEnforceUserLimitMiddleware } from './presentation/http/middlewares/enforce-user-limit.middleware'
-import { createBillingRouter } from './presentation/http/routes'
+import {
+    createBillingRouter,
+    createStripeWebhookRouter,
+} from './presentation/http/routes'
 
 export type BillingModule = {
     billingRouter: ReturnType<typeof createBillingRouter>
+    stripeWebhookRouter: ReturnType<typeof createStripeWebhookRouter>
     authorizeFeatureMiddleware: ReturnType<
         typeof createAuthorizeFeatureMiddleware
     >
@@ -25,6 +33,7 @@ export type BillingModule = {
 export function createBillingModule(): BillingModule {
     const databaseClient = getDatabaseClient()
     const billingRepository = new PostgresBillingRepository(databaseClient)
+    const stripeGateway = new StripeSdkGateway()
     const userRepository = new PostgresUserRepository(databaseClient)
     const sessionRepository = new PostgresSessionRepository(databaseClient)
     const organizationUserRepository = new PostgresOrganizationUserRepository(
@@ -51,6 +60,15 @@ export function createBillingModule(): BillingModule {
     return {
         billingRouter: createBillingHttpRouterFactory({
             billingRepository,
+            stripeGateway,
+            middlewares: {
+                authenticateAccessTokenMiddleware,
+                authorizePermissionMiddleware,
+            },
+        }),
+        stripeWebhookRouter: createStripeWebhookHttpRouterFactory({
+            billingRepository,
+            stripeGateway,
             middlewares: {
                 authenticateAccessTokenMiddleware,
                 authorizePermissionMiddleware,
