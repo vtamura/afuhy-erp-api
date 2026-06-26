@@ -150,14 +150,15 @@ function operation(input: {
     conflict?: boolean
 }) {
     const responses: Record<string, unknown> = {
-        [input.noContent ? '204' : input.created ? '201' : '200']: input.noContent
-            ? { description: 'Operacao concluida.' }
-            : {
-                  description: 'Operacao concluida.',
-                  content: {
-                      'application/json': { schema: input.responseSchema },
+        [input.noContent ? '204' : input.created ? '201' : '200']:
+            input.noContent
+                ? { description: 'Operacao concluida.' }
+                : {
+                      description: 'Operacao concluida.',
+                      content: {
+                          'application/json': { schema: input.responseSchema },
+                      },
                   },
-              },
         '400': { description: 'Entrada invalida.', ...errorResponse },
         '401': { description: 'Nao autenticado.', ...errorResponse },
         '403': {
@@ -166,10 +167,16 @@ function operation(input: {
         },
     }
     if (input.notFound) {
-        responses['404'] = { description: 'Recurso nao encontrado.', ...errorResponse }
+        responses['404'] = {
+            description: 'Recurso nao encontrado.',
+            ...errorResponse,
+        }
     }
     if (input.conflict) {
-        responses['409'] = { description: 'Conflito de estado.', ...errorResponse }
+        responses['409'] = {
+            description: 'Conflito de estado.',
+            ...errorResponse,
+        }
     }
 
     return {
@@ -205,16 +212,13 @@ const transactionPaths = {
                 },
             }),
             parameters: [
-                ...[
-                    'accountId',
-                    'categoryId',
-                    'customerId',
-                    'supplierId',
-                ].map((name) => ({
-                    name,
-                    in: 'query',
-                    schema: { type: 'string', format: 'uuid' },
-                })),
+                ...['accountId', 'categoryId', 'customerId', 'supplierId'].map(
+                    (name) => ({
+                        name,
+                        in: 'query',
+                        schema: { type: 'string', format: 'uuid' },
+                    }),
+                ),
                 {
                     name: 'type',
                     in: 'query',

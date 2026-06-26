@@ -82,7 +82,9 @@ export const loansOpenApiDocument: OpenApiModuleDocument = {
                     required: true,
                     content: {
                         'application/json': {
-                            schema: { $ref: '#/components/schemas/LoanPayload' },
+                            schema: {
+                                $ref: '#/components/schemas/LoanPayload',
+                            },
                         },
                     },
                 },

@@ -140,7 +140,10 @@ function collectionPath(resourceName: 'customers' | 'suppliers') {
                 '400': { description: 'Entrada invalida.', ...errorResponse },
                 '401': { description: 'Nao autenticado.', ...errorResponse },
                 '403': { description: 'Sem acesso.', ...errorResponse },
-                '409': { description: 'Documento ja cadastrado.', ...errorResponse },
+                '409': {
+                    description: 'Documento ja cadastrado.',
+                    ...errorResponse,
+                },
             },
         },
     }
@@ -185,7 +188,10 @@ function itemPath(resourceName: 'customers' | 'suppliers') {
                 },
                 '401': { description: 'Nao autenticado.', ...errorResponse },
                 '403': { description: 'Sem acesso.', ...errorResponse },
-                '404': { description: 'Cadastro nao encontrado.', ...errorResponse },
+                '404': {
+                    description: 'Cadastro nao encontrado.',
+                    ...errorResponse,
+                },
             },
         },
         patch: {
@@ -218,8 +224,14 @@ function itemPath(resourceName: 'customers' | 'suppliers') {
                 '400': { description: 'Entrada invalida.', ...errorResponse },
                 '401': { description: 'Nao autenticado.', ...errorResponse },
                 '403': { description: 'Sem acesso.', ...errorResponse },
-                '404': { description: 'Cadastro nao encontrado.', ...errorResponse },
-                '409': { description: 'Documento ja cadastrado.', ...errorResponse },
+                '404': {
+                    description: 'Cadastro nao encontrado.',
+                    ...errorResponse,
+                },
+                '409': {
+                    description: 'Documento ja cadastrado.',
+                    ...errorResponse,
+                },
             },
         },
         delete: {
@@ -232,7 +244,10 @@ function itemPath(resourceName: 'customers' | 'suppliers') {
                 '204': { description: 'Cadastro removido.' },
                 '401': { description: 'Nao autenticado.', ...errorResponse },
                 '403': { description: 'Sem acesso.', ...errorResponse },
-                '404': { description: 'Cadastro nao encontrado.', ...errorResponse },
+                '404': {
+                    description: 'Cadastro nao encontrado.',
+                    ...errorResponse,
+                },
             },
         },
     }
