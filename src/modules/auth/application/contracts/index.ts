@@ -7,6 +7,7 @@ export { createOrganizationInvitationSchema } from './create-organization-invita
 export { createUserSchema } from './create-user.schema'
 export { deleteUserSchema } from './delete-user.schema'
 export { forgotPasswordSchema } from './forgot-password.schema'
+export { getCurrentAuthContextSchema } from './get-current-auth-context.schema'
 export { listOrganizationMembersSchema } from './list-organization-members.schema'
 export { listOrganizationInvitationsSchema } from './list-organization-invitations.schema'
 export { listOrganizationRolesSchema } from './list-organization-roles.schema'

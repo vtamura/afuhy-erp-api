@@ -118,6 +118,7 @@ describe('AcceptOrganizationInvitationUseCase', () => {
             findByIdInOrganization: jest.fn(),
             findByOrganizationAndUser: jest.fn(),
             findActiveByOrganizationAndUser: jest.fn(),
+            findActiveMemberByOrganizationAndUser: jest.fn(),
             deactivate: jest.fn(),
             listActiveMembers: jest.fn(),
         }
@@ -133,6 +134,7 @@ describe('AcceptOrganizationInvitationUseCase', () => {
             ensureOrganizationRole: jest.fn(),
             ensureDefaultOrganizationRoles: jest.fn(),
             userHasPermission: jest.fn(),
+            listPermissionCodesForUser: jest.fn(),
         }
         const userRepository: UserRepository = {
             create: jest.fn().mockResolvedValue(createdUser),

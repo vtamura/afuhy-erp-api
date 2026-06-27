@@ -92,6 +92,8 @@ export class LoginUseCase {
             user: toUserResponseDto(user),
             session: toSessionResponseDto(session),
             organizations: organizations.map(toOrganizationResponseDto),
+            currentOrganization: null,
+            currentMembership: null,
             tokens: {
                 accessToken,
                 refreshToken,

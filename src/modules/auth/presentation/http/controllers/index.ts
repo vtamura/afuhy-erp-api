@@ -7,6 +7,7 @@ export { CreateOrganizationInvitationController } from './create-organization-in
 export { CreateUserController } from './create-user.controller'
 export { DeleteUserController } from './delete-user.controller'
 export { ForgotPasswordController } from './forgot-password.controller'
+export { GetCurrentAuthContextController } from './get-current-auth-context.controller'
 export { ListOrganizationMembersController } from './list-organization-members.controller'
 export { ListOrganizationInvitationsController } from './list-organization-invitations.controller'
 export { ListOrganizationRolesController } from './list-organization-roles.controller'

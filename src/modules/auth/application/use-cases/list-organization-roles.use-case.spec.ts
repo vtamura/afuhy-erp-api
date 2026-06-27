@@ -57,6 +57,7 @@ describe('ListOrganizationRolesUseCase', () => {
             ensureOrganizationRole: jest.fn(),
             ensureDefaultOrganizationRoles: jest.fn(),
             userHasPermission: jest.fn(),
+            listPermissionCodesForUser: jest.fn(),
         }
         const useCase = new ListOrganizationRolesUseCase(
             organizationRepository,

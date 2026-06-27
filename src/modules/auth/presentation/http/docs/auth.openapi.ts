@@ -412,9 +412,58 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 },
             },
         },
+        CurrentMembership: {
+            type: 'object',
+            required: [
+                'organizationUserId',
+                'userId',
+                'status',
+                'roles',
+                'permissions',
+                'createdAt',
+            ],
+            properties: {
+                organizationUserId: {
+                    type: 'string',
+                    format: 'uuid',
+                },
+                userId: {
+                    type: 'string',
+                    format: 'uuid',
+                },
+                status: {
+                    type: 'string',
+                    enum: ['ACTIVE'],
+                    example: 'ACTIVE',
+                },
+                roles: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/Role',
+                    },
+                },
+                permissions: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        example: 'financial.entries.read',
+                    },
+                },
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                },
+            },
+        },
         AuthResponse: {
             type: 'object',
-            required: ['user', 'session'],
+            required: [
+                'user',
+                'session',
+                'organizations',
+                'currentOrganization',
+                'currentMembership',
+            ],
             properties: {
                 user: {
                     $ref: '#/components/schemas/User',
@@ -427,6 +476,22 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                     items: {
                         $ref: '#/components/schemas/Organization',
                     },
+                },
+                currentOrganization: {
+                    allOf: [
+                        {
+                            $ref: '#/components/schemas/Organization',
+                        },
+                    ],
+                    nullable: true,
+                },
+                currentMembership: {
+                    allOf: [
+                        {
+                            $ref: '#/components/schemas/CurrentMembership',
+                        },
+                    ],
+                    nullable: true,
                 },
                 tokens: {
                     type: 'object',
@@ -700,6 +765,34 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                 },
             },
         },
+        '/auth/me': {
+            get: {
+                tags: ['Auth'],
+                summary: 'Retorna o usuario autenticado e contexto atual',
+                description:
+                    'Retorna usuario, sessao, organizacoes disponiveis e, quando houver organizacao selecionada, currentOrganization e currentMembership com roles e permissoes efetivas.',
+                security: [
+                    {
+                        accessTokenCookie: [],
+                    },
+                ],
+                responses: {
+                    '200': {
+                        description:
+                            'Contexto atual da autenticacao. Nao rotaciona tokens.',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    $ref: '#/components/schemas/AuthResponse',
+                                },
+                            },
+                        },
+                    },
+                    '401': unauthorizedResponse,
+                    '403': forbiddenResponse,
+                },
+            },
+        },
         '/auth/refresh': {
             post: {
                 tags: ['Auth'],
@@ -722,6 +815,7 @@ export const authOpenApiDocument: OpenApiModuleDocument = {
                         },
                     },
                     '401': unauthorizedResponse,
+                    '403': forbiddenResponse,
                 },
             },
         },

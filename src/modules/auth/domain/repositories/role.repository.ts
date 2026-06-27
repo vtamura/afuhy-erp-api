@@ -56,4 +56,8 @@ export interface RoleRepository {
         organizationId: string
         permissionCode: string
     }): Promise<boolean>
+    listPermissionCodesForUser(input: {
+        userId: string
+        organizationId: string
+    }): Promise<string[]>
 }

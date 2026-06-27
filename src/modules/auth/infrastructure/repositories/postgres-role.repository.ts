@@ -262,6 +262,31 @@ export class PostgresRoleRepository implements RoleRepository {
         return Boolean(row)
     }
 
+    async listPermissionCodesForUser(input: {
+        userId: string
+        organizationId: string
+    }): Promise<string[]> {
+        const rows = await this.databaseClient.select<{ code: string }>(
+            `
+                SELECT DISTINCT permissions.code
+                FROM organization_users
+                INNER JOIN user_roles
+                    ON user_roles.organization_user_id = organization_users.id
+                INNER JOIN role_permissions
+                    ON role_permissions.role_id = user_roles.role_id
+                INNER JOIN permissions
+                    ON permissions.id = role_permissions.permission_id
+                WHERE organization_users.user_id = :userId
+                    AND organization_users.organization_id = :organizationId
+                    AND organization_users.status = 'ACTIVE'
+                ORDER BY permissions.code ASC
+            `,
+            input,
+        )
+
+        return rows.map((row) => row.code)
+    }
+
     private toEntity(row: RoleRow): RoleEntity {
         return {
             id: row.id,

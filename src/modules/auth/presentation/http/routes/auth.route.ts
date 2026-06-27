@@ -3,6 +3,7 @@ import type {
     AcceptOrganizationInvitationController,
     ChangePasswordController,
     ForgotPasswordController,
+    GetCurrentAuthContextController,
     ListSessionsController,
     LoginController,
     LogoutController,
@@ -25,6 +26,7 @@ type CreateAuthRouterParams = {
     forgotPasswordController: ForgotPasswordController
     resetPasswordController: ResetPasswordController
     acceptOrganizationInvitationController: AcceptOrganizationInvitationController
+    getCurrentAuthContextController: GetCurrentAuthContextController
     authenticateAccessTokenMiddleware: RequestHandler
 }
 
@@ -40,11 +42,17 @@ export function createAuthRouter({
     forgotPasswordController,
     resetPasswordController,
     acceptOrganizationInvitationController,
+    getCurrentAuthContextController,
     authenticateAccessTokenMiddleware,
 }: CreateAuthRouterParams): Router {
     const router = Router()
 
     router.post('/auth/login', loginController.handle)
+    router.get(
+        '/auth/me',
+        authenticateAccessTokenMiddleware,
+        getCurrentAuthContextController.handle,
+    )
     router.post('/auth/refresh', refreshSessionController.handle)
     router.post('/auth/logout', logoutController.handle)
     router.get(

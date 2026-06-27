@@ -37,6 +37,10 @@ export interface OrganizationUserRepository {
         organizationId: string
         userId: string
     }): Promise<OrganizationUserEntity | null>
+    findActiveMemberByOrganizationAndUser(input: {
+        organizationId: string
+        userId: string
+    }): Promise<OrganizationMember | null>
     deactivate(input: {
         organizationId: string
         organizationUserId: string

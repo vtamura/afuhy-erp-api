@@ -8,6 +8,7 @@ import { toSessionResponseDto } from '../mappers/session-response.mapper'
 import { toUserResponseDto } from '../mappers/user-response.mapper'
 import type { RefreshTokenHasherPort } from '../ports/refresh-token-hasher.port'
 import type { TokenService } from '../ports/token.service'
+import type { AuthContextService } from '../services/auth-context.service'
 
 type RefreshSessionUseCaseInput = {
     refreshToken?: string
@@ -27,6 +28,7 @@ export class RefreshSessionUseCase {
         private readonly sessionRepository: SessionRepository,
         private readonly refreshTokenHasher: RefreshTokenHasherPort,
         private readonly tokenService: TokenService,
+        private readonly authContextService: AuthContextService,
     ) {}
 
     async execute(
@@ -74,11 +76,16 @@ export class RefreshSessionUseCase {
         const organizations = await this.organizationRepository.listByUserId(
             user.id,
         )
+        const context = await this.authContextService.resolve({
+            userId: user.id,
+            organizationId: session.organizationId,
+        })
 
         return {
             user: toUserResponseDto(user),
             session: toSessionResponseDto(session),
             organizations: organizations.map(toOrganizationResponseDto),
+            ...context,
             tokens: {
                 accessToken,
                 refreshToken,

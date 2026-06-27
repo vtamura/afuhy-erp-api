@@ -7,6 +7,7 @@ export { CreateOrganizationInvitationUseCase } from './create-organization-invit
 export { CreateUserUseCase } from './create-user.use-case'
 export { DeleteUserUseCase } from './delete-user.use-case'
 export { ForgotPasswordUseCase } from './forgot-password.use-case'
+export { GetCurrentAuthContextUseCase } from './get-current-auth-context.use-case'
 export { ListOrganizationMembersUseCase } from './list-organization-members.use-case'
 export { ListOrganizationInvitationsUseCase } from './list-organization-invitations.use-case'
 export { ListOrganizationRolesUseCase } from './list-organization-roles.use-case'

@@ -125,6 +125,51 @@ export class PostgresOrganizationUserRepository implements OrganizationUserRepos
         return row ? this.toEntity(row) : null
     }
 
+    async findActiveMemberByOrganizationAndUser(input: {
+        organizationId: string
+        userId: string
+    }): Promise<OrganizationMember | null> {
+        const [row] = await this.databaseClient.select<OrganizationMemberRow>(
+            `
+                SELECT
+                    ou.id AS organization_user_id,
+                    u.id AS user_id,
+                    u.name,
+                    u.email,
+                    ou.status,
+                    COALESCE(
+                        JSONB_AGG(
+                            JSONB_BUILD_OBJECT(
+                                'id', roles.id,
+                                'code', roles.code,
+                                'name', roles.name,
+                                'isSystem', roles.is_system
+                            )
+                            ORDER BY roles.name
+                        ) FILTER (WHERE roles.id IS NOT NULL),
+                        '[]'::jsonb
+                    ) AS roles,
+                    ou.created_at
+                FROM organization_users ou
+                INNER JOIN users u
+                    ON u.id = ou.user_id
+                    AND u.deleted_at IS NULL
+                LEFT JOIN user_roles
+                    ON user_roles.organization_user_id = ou.id
+                LEFT JOIN roles
+                    ON roles.id = user_roles.role_id
+                WHERE ou.organization_id = :organizationId
+                    AND ou.user_id = :userId
+                    AND ou.status = 'ACTIVE'
+                GROUP BY ou.id, u.id, u.name, u.email, ou.status, ou.created_at
+                LIMIT 1
+            `,
+            input,
+        )
+
+        return row ? this.toMember(row) : null
+    }
+
     async deactivate(input: {
         organizationId: string
         organizationUserId: string
@@ -184,7 +229,11 @@ export class PostgresOrganizationUserRepository implements OrganizationUserRepos
             { organizationId },
         )
 
-        return rows.map((row) => ({
+        return rows.map((row) => this.toMember(row))
+    }
+
+    private toMember(row: OrganizationMemberRow): OrganizationMember {
+        return {
             organizationUserId: row.organization_user_id,
             userId: row.user_id,
             name: row.name,
@@ -192,7 +241,7 @@ export class PostgresOrganizationUserRepository implements OrganizationUserRepos
             status: row.status,
             roles: row.roles ?? [],
             createdAt: new Date(row.created_at),
-        }))
+        }
     }
 
     private toEntity(row: OrganizationUserRow): OrganizationUserEntity {

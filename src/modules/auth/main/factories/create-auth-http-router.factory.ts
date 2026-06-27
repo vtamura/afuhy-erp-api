@@ -2,6 +2,7 @@ import {
     AcceptOrganizationInvitationUseCase,
     ChangePasswordUseCase,
     ForgotPasswordUseCase,
+    GetCurrentAuthContextUseCase,
     ListSessionsUseCase,
     LoginUseCase,
     LogoutUseCase,
@@ -15,6 +16,7 @@ import {
     AcceptOrganizationInvitationController,
     ChangePasswordController,
     ForgotPasswordController,
+    GetCurrentAuthContextController,
     ListSessionsController,
     LoginController,
     LogoutController,
@@ -24,6 +26,7 @@ import {
     RevokeSessionController,
     SelectOrganizationController,
 } from '../../presentation/http/controllers'
+import { AuthContextService } from '../../application/services/auth-context.service'
 import { createAuthRouter } from '../../presentation/http/routes'
 import type { AuthHttpRouterFactoryDependencies } from './auth-http-router-factory.types'
 
@@ -35,6 +38,7 @@ export function createAuthHttpRouterFactory(
         organizationRepository,
         organizationUserRepository,
         passwordResetTokenRepository,
+        roleRepository,
         sessionRepository,
         userRepository,
     } = deps.repositories
@@ -69,12 +73,17 @@ export function createAuthHttpRouterFactory(
         passwordHasher,
         refreshTokenHasher,
     )
+    const authContextService = new AuthContextService(
+        organizationRepository,
+        organizationUserRepository,
+        roleRepository,
+    )
     const acceptOrganizationInvitationUseCase =
         new AcceptOrganizationInvitationUseCase(
             organizationRepository,
             organizationInvitationRepository,
             organizationUserRepository,
-            deps.repositories.roleRepository,
+            roleRepository,
             userRepository,
             passwordHasher,
             refreshTokenHasher,
@@ -93,14 +102,21 @@ export function createAuthHttpRouterFactory(
         sessionRepository,
         refreshTokenHasher,
         tokenService,
+        authContextService,
     )
     const selectOrganizationUseCase = new SelectOrganizationUseCase(
         userRepository,
         sessionRepository,
         organizationRepository,
-        organizationUserRepository,
         refreshTokenHasher,
         tokenService,
+        authContextService,
+    )
+    const getCurrentAuthContextUseCase = new GetCurrentAuthContextUseCase(
+        userRepository,
+        sessionRepository,
+        organizationRepository,
+        authContextService,
     )
     const logoutUseCase = new LogoutUseCase(sessionRepository, tokenService)
 
@@ -110,6 +126,9 @@ export function createAuthHttpRouterFactory(
             refreshSessionUseCase,
         ),
         logoutController: new LogoutController(logoutUseCase),
+        getCurrentAuthContextController: new GetCurrentAuthContextController(
+            getCurrentAuthContextUseCase,
+        ),
         selectOrganizationController: new SelectOrganizationController(
             selectOrganizationUseCase,
         ),

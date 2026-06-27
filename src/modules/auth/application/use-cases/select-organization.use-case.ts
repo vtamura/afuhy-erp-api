@@ -1,10 +1,5 @@
-import {
-    ForbiddenError,
-    NotFoundError,
-    UnauthorizedError,
-} from '../../../../shared/domain/errors'
+import { UnauthorizedError } from '../../../../shared/domain/errors'
 import type { OrganizationRepository } from '../../domain/repositories/organization.repository'
-import type { OrganizationUserRepository } from '../../domain/repositories/organization-user.repository'
 import type { SessionRepository } from '../../domain/repositories/session.repository'
 import type { UserRepository } from '../../domain/repositories/user.repository'
 import type { AuthResponseDto } from '../dto'
@@ -13,6 +8,7 @@ import { toSessionResponseDto } from '../mappers/session-response.mapper'
 import { toUserResponseDto } from '../mappers/user-response.mapper'
 import type { RefreshTokenHasherPort } from '../ports/refresh-token-hasher.port'
 import type { TokenService } from '../ports/token.service'
+import type { AuthContextService } from '../services/auth-context.service'
 
 type SelectOrganizationUseCaseInput = {
     organizationId: string
@@ -31,9 +27,9 @@ export class SelectOrganizationUseCase {
         private readonly userRepository: UserRepository,
         private readonly sessionRepository: SessionRepository,
         private readonly organizationRepository: OrganizationRepository,
-        private readonly organizationUserRepository: OrganizationUserRepository,
         private readonly refreshTokenHasher: RefreshTokenHasherPort,
         private readonly tokenService: TokenService,
+        private readonly authContextService: AuthContextService,
     ) {}
 
     async execute(
@@ -61,42 +57,25 @@ export class SelectOrganizationUseCase {
             throw new UnauthorizedError('Usuario invalido')
         }
 
-        const organization = await this.organizationRepository.findById(
-            input.organizationId,
-        )
-
-        if (!organization || !organization.isActive) {
-            throw new NotFoundError('Organizacao nao encontrada')
-        }
-
-        const organizationUser =
-            await this.organizationUserRepository.findActiveByOrganizationAndUser(
-                {
-                    organizationId: organization.id,
-                    userId: user.id,
-                },
-            )
-
-        if (!organizationUser) {
-            throw new ForbiddenError(
-                'Usuario sem vinculo ativo com a organizacao',
-            )
-        }
+        const context = await this.authContextService.resolve({
+            userId: user.id,
+            organizationId: input.organizationId,
+        })
 
         const accessToken = this.tokenService.signAccessToken({
             sub: user.id,
             sessionId: session.id,
-            organizationId: organization.id,
+            organizationId: input.organizationId,
         })
         const refreshToken = this.tokenService.signRefreshToken({
             sub: user.id,
             sessionId: session.id,
-            organizationId: organization.id,
+            organizationId: input.organizationId,
         })
 
         await this.sessionRepository.selectOrganization({
             sessionId: session.id,
-            organizationId: organization.id,
+            organizationId: input.organizationId,
             refreshTokenHash: this.refreshTokenHasher.hash(refreshToken),
             expiresAt: this.tokenService.getRefreshTokenExpiresAt(),
         })
@@ -109,9 +88,10 @@ export class SelectOrganizationUseCase {
             user: toUserResponseDto(user),
             session: {
                 ...toSessionResponseDto(session),
-                organizationId: organization.id,
+                organizationId: input.organizationId,
             },
             organizations: organizations.map(toOrganizationResponseDto),
+            ...context,
             tokens: {
                 accessToken,
                 refreshToken,
