@@ -51,34 +51,38 @@ const idWithAuth = z.object({
     authUser: authUserSchema,
 })
 
-const loanPayloadSchema = z
-    .object({
-        borrowerType: z.enum(['CUSTOMER', 'EMPLOYEE']),
-        customerId: nullableUuid,
-        employeeId: nullableUuid,
-        expectedReturnDate: dateSchema,
-        notes: nullableText(5000),
-        items: z.array(loanItemSchema).min(1),
-    })
-    .refine(
-        (data) =>
-            (data.borrowerType === 'CUSTOMER' &&
-                !!data.customerId &&
-                !data.employeeId) ||
-            (data.borrowerType === 'EMPLOYEE' &&
-                !!data.employeeId &&
-                !data.customerId),
-        {
-            message: 'Informe exatamente um tomador conforme o tipo',
-            path: ['borrowerType'],
-        },
-    )
+const validateBorrower = (data: {
+    borrowerType: 'CUSTOMER' | 'EMPLOYEE'
+    customerId: string | null
+    employeeId: string | null
+}) =>
+    (data.borrowerType === 'CUSTOMER' &&
+        !!data.customerId &&
+        !data.employeeId) ||
+    (data.borrowerType === 'EMPLOYEE' && !!data.employeeId && !data.customerId)
+
+const loanPayloadBaseSchema = z.object({
+    borrowerType: z.enum(['CUSTOMER', 'EMPLOYEE']),
+    customerId: nullableUuid,
+    employeeId: nullableUuid,
+    expectedReturnDate: dateSchema,
+    notes: nullableText(5000),
+    items: z.array(loanItemSchema).min(1),
+})
+
+const loanPayloadSchema = loanPayloadBaseSchema.refine(
+    (data) => validateBorrower(data),
+    {
+        message: 'Informe exatamente um tomador conforme o tipo',
+        path: ['borrowerType'],
+    },
+)
 
 export const createLoanSchema = loanPayloadSchema.extend({
     authUser: authUserSchema,
 })
 
-export const updateLoanSchema = loanPayloadSchema
+export const updateLoanSchema = loanPayloadBaseSchema
     .partial()
     .extend(idWithAuth.shape)
 
