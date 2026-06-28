@@ -1,7 +1,7 @@
 'use strict'
 
 const plans = [
-    ['STARTER', 'Starter', 9990, 'BRL', 'MONTH', 5],
+    ['STARTER', 'Starter', 7990, 'BRL', 'MONTH', 5],
     ['PROFESSIONAL', 'Professional', 19990, 'BRL', 'MONTH', 30],
 ]
 
