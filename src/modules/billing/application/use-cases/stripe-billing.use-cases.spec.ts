@@ -252,6 +252,37 @@ describe('Stripe billing use cases', () => {
         expect(repository.markStripeEventProcessed).not.toHaveBeenCalled()
     })
 
+    it('stores null api version when Stripe event omits api_version', async () => {
+        const repository = makeRepository()
+        const stripeGateway = makeStripeGateway()
+        stripeGateway.constructWebhookEvent.mockReturnValueOnce({
+            id: 'evt_test',
+            type: 'customer.subscription.updated',
+            apiVersion: undefined as unknown as null,
+            livemode: false,
+            data: {
+                object: {
+                    id: 'sub_test',
+                },
+            },
+        })
+        const useCase = new HandleStripeWebhookUseCase(
+            repository,
+            stripeGateway,
+        )
+
+        await useCase.execute({
+            payload: Buffer.from('{}'),
+            signature: 'valid_signature',
+        })
+
+        expect(repository.startStripeEventProcessing).toHaveBeenCalledWith(
+            expect.objectContaining({
+                apiVersion: null,
+            }),
+        )
+    })
+
     it('syncs subscription data from Stripe webhook', async () => {
         const repository = makeRepository()
         const transactionalRepository = makeRepository()

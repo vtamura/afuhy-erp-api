@@ -3,6 +3,7 @@ import {
     BadRequestError,
     InternalServerError,
 } from '../../../../shared/domain/errors'
+import { createLogger } from '../../../../shared/infrastructure/logger/logger'
 import type {
     PlanCode,
     SubscriptionStatus,
@@ -24,6 +25,10 @@ type Input = {
 }
 
 export class HandleStripeWebhookUseCase {
+    private readonly logger = createLogger({
+        component: 'stripe-webhook-use-case',
+    })
+
     constructor(
         private readonly billingRepository: BillingRepository,
         private readonly stripeGateway: StripeGateway,
@@ -53,11 +58,19 @@ export class HandleStripeWebhookUseCase {
             throw new BadRequestError('Assinatura Stripe invalida')
         }
 
+        this.logger.info('stripe_webhook.event_received', {
+            stripeEventId: event.id,
+            stripeEventType: event.type,
+            apiVersion: event.apiVersion ?? null,
+            livemode: event.livemode,
+            object: event.data.object,
+        })
+
         const processing =
             await this.billingRepository.startStripeEventProcessing({
                 stripeEventId: event.id,
                 type: event.type,
-                apiVersion: event.apiVersion,
+                apiVersion: event.apiVersion ?? null,
                 livemode: event.livemode,
                 payload: event as unknown as Record<string, unknown>,
             })

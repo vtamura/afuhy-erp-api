@@ -32,6 +32,7 @@ export class HandleStripeWebhookController {
             if (error instanceof BaseError) {
                 this.logger.warn('stripe_webhook.domain_error', {
                     code: error.code,
+                    message: error.message,
                     statusCode: error.statusCode,
                     details: error.details,
                 })
