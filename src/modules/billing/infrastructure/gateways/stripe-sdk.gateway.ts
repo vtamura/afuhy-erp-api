@@ -85,11 +85,21 @@ export class StripeSdkGateway implements StripeGateway {
         signature: string
         webhookSecret: string
     }): StripeWebhookEvent {
-        return this.stripe.webhooks.constructEvent(
+        const event = this.stripe.webhooks.constructEvent(
             input.payload,
             input.signature,
             input.webhookSecret,
-        ) as unknown as StripeWebhookEvent
+        )
+
+        return {
+            id: event.id,
+            type: event.type,
+            apiVersion: event.api_version ?? null,
+            livemode: event.livemode,
+            data: {
+                object: event.data.object as unknown as Record<string, unknown>,
+            },
+        }
     }
 
     async retrieveSubscription(

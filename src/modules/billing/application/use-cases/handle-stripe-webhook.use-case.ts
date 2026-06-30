@@ -63,7 +63,8 @@ export class HandleStripeWebhookUseCase {
             stripeEventType: event.type,
             apiVersion: event.apiVersion ?? null,
             livemode: event.livemode,
-            object: event.data.object,
+            objectId: this.readString(event.data.object, 'id'),
+            objectType: this.readString(event.data.object, 'object'),
         })
 
         const processing =
@@ -97,6 +98,7 @@ export class HandleStripeWebhookUseCase {
             event.type === 'customer.subscription.created' ||
             event.type === 'customer.subscription.updated' ||
             event.type === 'customer.subscription.deleted' ||
+            event.type === 'invoice.paid' ||
             event.type === 'invoice.payment_succeeded' ||
             event.type === 'invoice.payment_failed'
         ) {
@@ -118,24 +120,59 @@ export class HandleStripeWebhookUseCase {
 
         if (
             event.type.startsWith('customer.subscription.') &&
-            typeof object.id === 'string'
+            this.readString(object, 'id')
         ) {
-            return object.id
+            return this.readString(object, 'id')
         }
 
-        const subscription = object.subscription
+        return (
+            this.readExpandableId(object, 'subscription') ??
+            this.readInvoiceParentSubscriptionId(object) ??
+            this.readInvoiceLineSubscriptionId(object)
+        )
+    }
 
-        if (typeof subscription === 'string') {
-            return subscription
+    private readInvoiceParentSubscriptionId(
+        object: Record<string, unknown>,
+    ): string | null {
+        const parent = this.readObject(object, 'parent')
+        const subscriptionDetails = parent
+            ? this.readObject(parent, 'subscription_details')
+            : null
+
+        if (!subscriptionDetails) {
+            return null
         }
 
-        if (
-            subscription &&
-            typeof subscription === 'object' &&
-            'id' in subscription &&
-            typeof subscription.id === 'string'
-        ) {
-            return subscription.id
+        return this.readExpandableId(subscriptionDetails, 'subscription')
+    }
+
+    private readInvoiceLineSubscriptionId(
+        object: Record<string, unknown>,
+    ): string | null {
+        const lines = this.readObject(object, 'lines')
+        const data = lines?.data
+
+        if (!Array.isArray(data)) {
+            return null
+        }
+
+        for (const line of data) {
+            if (!this.isRecord(line)) {
+                continue
+            }
+
+            const parent = this.readObject(line, 'parent')
+            const subscriptionItemDetails = parent
+                ? this.readObject(parent, 'subscription_item_details')
+                : null
+            const subscriptionId = subscriptionItemDetails
+                ? this.readExpandableId(subscriptionItemDetails, 'subscription')
+                : null
+
+            if (subscriptionId) {
+                return subscriptionId
+            }
         }
 
         return null
@@ -234,6 +271,15 @@ export class HandleStripeWebhookUseCase {
             return snapshot.organizationId
         }
 
+        const existingSubscription =
+            await this.billingRepository.findSubscriptionByStripeSubscriptionId(
+                snapshot.id,
+            )
+
+        if (existingSubscription) {
+            return existingSubscription.organizationId
+        }
+
         const profile =
             await this.billingRepository.findBillingProfileByStripeCustomerId(
                 snapshot.customerId,
@@ -260,6 +306,43 @@ export class HandleStripeWebhookUseCase {
 
         const value = (metadata as Record<string, unknown>)[key]
         return typeof value === 'string' && value ? value : null
+    }
+
+    private readExpandableId(
+        object: Record<string, unknown>,
+        key: string,
+    ): string | null {
+        const value = object[key]
+
+        if (typeof value === 'string' && value) {
+            return value
+        }
+
+        if (!this.isRecord(value)) {
+            return null
+        }
+
+        return this.readString(value, 'id')
+    }
+
+    private readObject(
+        object: Record<string, unknown>,
+        key: string,
+    ): Record<string, unknown> | null {
+        const value = object[key]
+        return this.isRecord(value) ? value : null
+    }
+
+    private readString(
+        object: Record<string, unknown>,
+        key: string,
+    ): string | null {
+        const value = object[key]
+        return typeof value === 'string' && value ? value : null
+    }
+
+    private isRecord(value: unknown): value is Record<string, unknown> {
+        return Boolean(value) && typeof value === 'object'
     }
 
     private mapStatus(status: string): SubscriptionStatus {

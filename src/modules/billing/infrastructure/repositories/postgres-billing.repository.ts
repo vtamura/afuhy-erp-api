@@ -460,6 +460,7 @@ export class PostgresBillingRepository implements BillingRepository {
                         :cancelAtPeriodEnd
                     )
                     ON CONFLICT (stripe_subscription_id)
+                    WHERE stripe_subscription_id IS NOT NULL
                     DO UPDATE SET
                         organization_id = EXCLUDED.organization_id,
                         plan_id = EXCLUDED.plan_id,

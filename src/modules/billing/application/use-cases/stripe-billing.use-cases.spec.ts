@@ -316,6 +316,120 @@ describe('Stripe billing use cases', () => {
         )
     })
 
+    it('extracts subscription from the current Stripe invoice payload shape', async () => {
+        const repository = makeRepository()
+        const stripeGateway = makeStripeGateway()
+        stripeGateway.constructWebhookEvent.mockReturnValueOnce({
+            id: 'evt_invoice',
+            type: 'invoice.payment_succeeded',
+            apiVersion: '2026-01-01',
+            livemode: false,
+            data: {
+                object: {
+                    id: 'in_test',
+                    object: 'invoice',
+                    parent: {
+                        type: 'subscription_details',
+                        subscription_details: {
+                            subscription: 'sub_from_parent',
+                        },
+                    },
+                    lines: {
+                        object: 'list',
+                        data: [
+                            {
+                                parent: {
+                                    type: 'subscription_item_details',
+                                    subscription_item_details: {
+                                        subscription: 'sub_from_line',
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                },
+            },
+        })
+        const useCase = new HandleStripeWebhookUseCase(
+            repository,
+            stripeGateway,
+        )
+
+        await useCase.execute({
+            payload: Buffer.from('{}'),
+            signature: 'valid_signature',
+        })
+
+        expect(stripeGateway.retrieveSubscription).toHaveBeenCalledWith(
+            'sub_from_parent',
+        )
+    })
+
+    it('uses an existing synced subscription to resolve organization when metadata and profile are missing', async () => {
+        const repository = makeRepository()
+        repository.findBillingProfileByStripeCustomerId.mockResolvedValueOnce(
+            null,
+        )
+        repository.findSubscriptionByStripeSubscriptionId.mockResolvedValueOnce(
+            {
+                id: '953acb97-b9e2-48bb-bce7-24a64f359274',
+                organizationId,
+                plan: {
+                    id: 'ccbc994b-fd5f-496e-a66a-a9829efa91c4',
+                    code: 'STARTER',
+                    name: 'Starter',
+                    priceCents: 9990,
+                    currency: 'BRL',
+                    billingInterval: 'MONTH',
+                    maxUsers: 5,
+                    createdAt: now,
+                    features: [],
+                },
+                stripeCustomerId: 'cus_test',
+                stripeSubscriptionId: 'sub_test',
+                stripePriceId: 'price_starter',
+                source: 'STRIPE',
+                status: 'ACTIVE',
+                startsAt: now,
+                endsAt: null,
+                currentPeriodStart: now,
+                currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'),
+                cancelAtPeriodEnd: false,
+                createdAt: now,
+                updatedAt: now,
+            },
+        )
+        const stripeGateway = makeStripeGateway()
+        stripeGateway.retrieveSubscription.mockResolvedValueOnce({
+            id: 'sub_test',
+            customerId: 'cus_missing_profile',
+            priceId: 'price_starter',
+            status: 'active',
+            startsAt: now,
+            endsAt: null,
+            currentPeriodStart: now,
+            currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'),
+            cancelAtPeriodEnd: false,
+            organizationId: null,
+        })
+        const useCase = new HandleStripeWebhookUseCase(
+            repository,
+            stripeGateway,
+        )
+
+        await useCase.execute({
+            payload: Buffer.from('{}'),
+            signature: 'valid_signature',
+        })
+
+        expect(
+            repository.findBillingProfileByStripeCustomerId,
+        ).not.toHaveBeenCalled()
+        expect(repository.markStripeEventProcessed).toHaveBeenCalledWith(
+            'evt_test',
+        )
+    })
+
     it('fails webhook when Stripe price is not mapped', async () => {
         const repository = makeRepository()
         repository.findPlanCodeByStripePriceId.mockReturnValueOnce(null)
