@@ -6,9 +6,11 @@ import type {
     EmployeeAssignmentEntity,
     EmployeeEntity,
     HrCatalogEntity,
+    PayrollProvisionEntity,
     SalaryChangeEntity,
 } from '../../domain/entities/hr.entity'
 import type { HrRepository } from '../../domain/repositories/hr.repository'
+import type { PayrollProvisionFinancialPort } from '../ports/payroll-provision-financial.port'
 import { HrService } from './hr.service'
 
 const organizationId = '11111111-1111-4111-8111-111111111111'
@@ -90,6 +92,17 @@ const salary = (effectiveDate = '2026-01-10'): SalaryChangeEntity => ({
     createdAt: now,
 })
 
+const payrollProvision = (): PayrollProvisionEntity => ({
+    id: '88888888-8888-4888-8888-888888888888',
+    organizationId,
+    year: 2026,
+    month: 6,
+    amount: '5000.00',
+    employeeCount: 1,
+    financialPayableId: '99999999-9999-4999-8999-999999999999',
+    createdAt: now,
+})
+
 function repositoryMock(): jest.Mocked<HrRepository> {
     return {
         createCatalog: jest.fn(),
@@ -112,13 +125,27 @@ function repositoryMock(): jest.Mocked<HrRepository> {
         createSalaryChange: jest.fn(),
         listSalaryChanges: jest.fn(),
         getSummary: jest.fn(),
+        findPayrollProvisionByPeriod: jest.fn(),
     }
+}
+
+function financialPortMock(): jest.Mocked<PayrollProvisionFinancialPort> {
+    return {
+        createPayrollProvision: jest.fn(),
+    }
+}
+
+function makeService(
+    repository: HrRepository,
+    financialPort: PayrollProvisionFinancialPort = financialPortMock(),
+) {
+    return new HrService(repository, financialPort)
 }
 
 describe('HrService', () => {
     it('creates catalogs and blocks duplicate names per tenant', async () => {
         const repository = repositoryMock()
-        const service = new HrService(repository)
+        const service = makeService(repository)
         repository.findCatalogByName.mockResolvedValueOnce(null)
         repository.createCatalog.mockResolvedValue(
             catalog(departmentId, 'Operacoes'),
@@ -154,7 +181,7 @@ describe('HrService', () => {
             catalog(departmentId, 'Operacoes'),
         )
         repository.catalogHasReferences.mockResolvedValue(true)
-        const service = new HrService(repository)
+        const service = makeService(repository)
 
         await expect(
             service.deleteCatalog({
@@ -175,7 +202,7 @@ describe('HrService', () => {
         repository.createEmployee.mockResolvedValue(
             employee({ organizationUserId: userId }),
         )
-        const service = new HrService(repository)
+        const service = makeService(repository)
 
         const result = await service.createEmployee({
             organizationId,
@@ -212,7 +239,7 @@ describe('HrService', () => {
             .mockResolvedValueOnce(catalog(departmentId, 'Operacoes'))
             .mockResolvedValueOnce(catalog(positionId, 'Analista'))
         repository.memberIsActive.mockResolvedValue(false)
-        const service = new HrService(repository)
+        const service = makeService(repository)
 
         await expect(
             service.createEmployee({
@@ -244,7 +271,7 @@ describe('HrService', () => {
                 terminationDate: '2026-06-19',
             }),
         )
-        const service = new HrService(repository)
+        const service = makeService(repository)
 
         await expect(
             service.updateEmployee({
@@ -275,7 +302,7 @@ describe('HrService', () => {
         const repository = repositoryMock()
         repository.findEmployeeById.mockResolvedValue(employee())
         repository.findEmployeeByUnique.mockResolvedValue(null)
-        const service = new HrService(repository)
+        const service = makeService(repository)
 
         await expect(
             service.updateEmployee({
@@ -302,7 +329,7 @@ describe('HrService', () => {
             .mockResolvedValueOnce(catalog(departmentId, 'Operacoes'))
             .mockResolvedValueOnce(catalog(positionId, 'Analista'))
         repository.listAssignments.mockResolvedValue([assignment('2026-05-01')])
-        const service = new HrService(repository)
+        const service = makeService(repository)
 
         await expect(
             service.createAssignment({
@@ -322,7 +349,7 @@ describe('HrService', () => {
         repository.findEmployeeById.mockResolvedValue(employee())
         repository.listSalaryChanges.mockResolvedValue([salary('2026-01-10')])
         repository.createSalaryChange.mockResolvedValue(salary('2026-06-01'))
-        const service = new HrService(repository)
+        const service = makeService(repository)
 
         await expect(
             service.createSalaryChange({
@@ -340,12 +367,92 @@ describe('HrService', () => {
         const repository = repositoryMock()
         repository.findEmployeeById.mockResolvedValue(employee())
         repository.employeeHasAdditionalHistory.mockResolvedValue(true)
-        const service = new HrService(repository)
+        const service = makeService(repository)
 
         await expect(
             service.deleteEmployee({ id: employeeId, organizationId }),
         ).rejects.toBeInstanceOf(ConflictError)
         expect(repository.deleteEmployee).not.toHaveBeenCalled()
+    })
+
+    it('creates a monthly payroll provision and blocks duplicate periods', async () => {
+        const repository = repositoryMock()
+        const financialPort = financialPortMock()
+        repository.findPayrollProvisionByPeriod.mockResolvedValueOnce(null)
+        financialPort.createPayrollProvision.mockResolvedValue(
+            payrollProvision(),
+        )
+        const service = makeService(repository, financialPort)
+
+        await expect(
+            service.createPayrollProvision({
+                organizationId,
+                createdBy: userId,
+                year: 2026,
+                month: 6,
+                dueDate: '2026-06-30',
+                accountId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                categoryId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            }),
+        ).resolves.toMatchObject({
+            year: 2026,
+            month: 6,
+            amount: '5000.00',
+            employeeCount: 1,
+        })
+        expect(financialPort.createPayrollProvision).toHaveBeenCalledWith({
+            organizationId,
+            createdBy: userId,
+            year: 2026,
+            month: 6,
+            dueDate: '2026-06-30',
+            accountId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            categoryId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        })
+
+        repository.findPayrollProvisionByPeriod.mockResolvedValueOnce(
+            payrollProvision(),
+        )
+        await expect(
+            service.createPayrollProvision({
+                organizationId,
+                createdBy: userId,
+                year: 2026,
+                month: 6,
+                dueDate: '2026-06-30',
+                accountId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                categoryId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            }),
+        ).rejects.toBeInstanceOf(ConflictError)
+        expect(financialPort.createPayrollProvision).toHaveBeenCalledTimes(1)
+    })
+
+    it('propagates payroll provision financial validation errors', async () => {
+        const repository = repositoryMock()
+        const financialPort = financialPortMock()
+        const service = makeService(repository, financialPort)
+        repository.findPayrollProvisionByPeriod.mockResolvedValue(null)
+
+        for (const error of [
+            new BadRequestError('Conta financeira invalida'),
+            new BadRequestError('Categoria financeira invalida'),
+            new BadRequestError('Nao ha colaboradores ativos para provisionar'),
+            new ConflictError('Provisao da competencia ja existe'),
+        ]) {
+            financialPort.createPayrollProvision.mockRejectedValueOnce(error)
+
+            await expect(
+                service.createPayrollProvision({
+                    organizationId,
+                    createdBy: userId,
+                    year: 2026,
+                    month: 6,
+                    dueDate: '2026-06-30',
+                    accountId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                    categoryId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+                }),
+            ).rejects.toBe(error)
+        }
     })
 
     it('uses current month by default in the summary', async () => {
@@ -361,7 +468,7 @@ describe('HrService', () => {
             periodStart: '2026-06-01',
             periodEnd: '2026-06-30',
         })
-        const service = new HrService(repository)
+        const service = makeService(repository)
 
         await service.getSummary({ organizationId })
         expect(repository.getSummary).toHaveBeenCalledWith({

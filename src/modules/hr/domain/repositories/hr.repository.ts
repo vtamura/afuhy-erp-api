@@ -5,6 +5,7 @@ import type {
     HrCatalogEntity,
     HrCatalogStatus,
     HrSummaryEntity,
+    PayrollProvisionEntity,
     SalaryChangeEntity,
 } from '../entities/hr.entity'
 
@@ -146,4 +147,9 @@ export interface HrRepository {
         periodStart: string
         periodEnd: string
     }): Promise<HrSummaryEntity>
+    findPayrollProvisionByPeriod(input: {
+        organizationId: string
+        year: number
+        month: number
+    }): Promise<PayrollProvisionEntity | null>
 }

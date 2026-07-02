@@ -4,6 +4,7 @@ import {
     CreateEmployeeAssignmentController,
     CreateEmployeeController,
     CreateHrCatalogController,
+    CreatePayrollProvisionController,
     CreateSalaryChangeController,
     DeleteEmployeeController,
     DeleteHrCatalogController,
@@ -34,7 +35,10 @@ const catalogControllers = (
 export function createHrHttpRouterFactory(
     deps: HrHttpRouterFactoryDependencies,
 ) {
-    const service = new HrService(deps.hrRepository)
+    const service = new HrService(
+        deps.hrRepository,
+        deps.payrollProvisionFinancialPort,
+    )
     return createHrRouter({
         controllers: {
             departments: catalogControllers(service, 'department'),
@@ -49,6 +53,9 @@ export function createHrHttpRouterFactory(
             createSalaryChange: new CreateSalaryChangeController(service),
             listSalaryChanges: new ListSalaryChangesController(service),
             getSummary: new GetHrSummaryController(service),
+            createPayrollProvision: new CreatePayrollProvisionController(
+                service,
+            ),
         },
         ...deps.middlewares,
     })

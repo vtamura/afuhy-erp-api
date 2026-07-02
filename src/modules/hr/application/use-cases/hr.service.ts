@@ -14,10 +14,12 @@ import type {
     HrCatalogType,
     HrRepository,
 } from '../../domain/repositories/hr.repository'
+import type { PayrollProvisionFinancialPort } from '../ports/payroll-provision-financial.port'
 import {
     toEmployeeAssignmentResponseDto,
     toEmployeeResponseDto,
     toHrCatalogResponseDto,
+    toPayrollProvisionResponseDto,
     toSalaryChangeResponseDto,
 } from '../dto'
 
@@ -32,7 +34,10 @@ const ensureDateOrder = (earlier: string, later: string, message: string) => {
 }
 
 export class HrService {
-    constructor(private readonly repository: HrRepository) {}
+    constructor(
+        private readonly repository: HrRepository,
+        private readonly payrollProvisionFinancialPort: PayrollProvisionFinancialPort,
+    ) {}
 
     async createCatalog(input: {
         type: HrCatalogType
@@ -539,5 +544,31 @@ export class HrService {
             periodStart,
             periodEnd,
         })
+    }
+
+    async createPayrollProvision(input: {
+        organizationId: string | null
+        createdBy: string
+        year: number
+        month: number
+        dueDate: string
+        accountId: string
+        categoryId: string
+    }) {
+        const organizationId = requireOrganization(input.organizationId)
+        const existing = await this.repository.findPayrollProvisionByPeriod({
+            organizationId,
+            year: input.year,
+            month: input.month,
+        })
+        if (existing)
+            throw new ConflictError('Provisao da competencia ja existe')
+
+        return toPayrollProvisionResponseDto(
+            await this.payrollProvisionFinancialPort.createPayrollProvision({
+                ...input,
+                organizationId,
+            }),
+        )
     }
 }

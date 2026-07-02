@@ -76,3 +76,14 @@ export type HrSummaryEntity = {
     periodStart: string
     periodEnd: string
 }
+
+export type PayrollProvisionEntity = {
+    id: string
+    organizationId: string
+    year: number
+    month: number
+    amount: string
+    employeeCount: number
+    financialPayableId: string
+    createdAt: Date
+}

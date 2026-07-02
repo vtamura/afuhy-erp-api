@@ -4,6 +4,7 @@ import type {
     CreateEmployeeAssignmentController,
     CreateEmployeeController,
     CreateHrCatalogController,
+    CreatePayrollProvisionController,
     CreateSalaryChangeController,
     DeleteEmployeeController,
     DeleteHrCatalogController,
@@ -40,6 +41,7 @@ export function createHrRouter(params: {
         createSalaryChange: CreateSalaryChangeController
         listSalaryChanges: ListSalaryChangesController
         getSummary: GetHrSummaryController
+        createPayrollProvision: CreatePayrollProvisionController
     }
     authenticateAccessTokenMiddleware: RequestHandler
     authorizePermissionMiddleware: (permissionCode: string) => RequestHandler
@@ -86,9 +88,17 @@ export function createHrRouter(params: {
         params.controllers.getSummary.handle,
     )
     router.post(
+        '/hr/payroll-provisions',
+        auth,
+        compensationManage,
+        feature,
+        params.controllers.createPayrollProvision.handle,
+    )
+    router.post(
         '/hr/employees',
         auth,
         manage,
+        compensationManage,
         feature,
         params.controllers.createEmployee.handle,
     )

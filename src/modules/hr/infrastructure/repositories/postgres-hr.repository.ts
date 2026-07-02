@@ -7,6 +7,7 @@ import type {
     HrCatalogEntity,
     HrCatalogStatus,
     HrSummaryEntity,
+    PayrollProvisionEntity,
     SalaryChangeEntity,
 } from '../../domain/entities/hr.entity'
 import type {
@@ -76,6 +77,16 @@ type SalaryRow = {
     reason: string | null
     created_by: string
     creator_name: string
+    created_at: Date
+}
+type PayrollProvisionRow = {
+    id: string
+    organization_id: string
+    year: number
+    month: number
+    amount: string
+    employee_count: number
+    financial_payable_id: string
     created_at: Date
 }
 
@@ -676,6 +687,25 @@ export class PostgresHrRepository implements HrRepository {
         }
     }
 
+    async findPayrollProvisionByPeriod(input: {
+        organizationId: string
+        year: number
+        month: number
+    }) {
+        const [row] = await this.databaseClient.select<PayrollProvisionRow>(
+            `
+                SELECT *
+                FROM hr_payroll_provisions
+                WHERE organization_id = :organizationId
+                    AND year = :year
+                    AND month = :month
+                LIMIT 1
+            `,
+            input,
+        )
+        return row ? this.toPayrollProvision(row) : null
+    }
+
     private async selectEmployee(
         client: DatabaseClient,
         input: { id: string; organizationId: string },
@@ -805,6 +835,21 @@ export class PostgresHrRepository implements HrRepository {
             reason: row.reason,
             createdBy: row.created_by,
             creatorName: row.creator_name,
+            createdAt: row.created_at,
+        }
+    }
+
+    private toPayrollProvision(
+        row: PayrollProvisionRow,
+    ): PayrollProvisionEntity {
+        return {
+            id: row.id,
+            organizationId: row.organization_id,
+            year: Number(row.year),
+            month: Number(row.month),
+            amount: String(row.amount),
+            employeeCount: Number(row.employee_count),
+            financialPayableId: row.financial_payable_id,
             createdAt: row.created_at,
         }
     }

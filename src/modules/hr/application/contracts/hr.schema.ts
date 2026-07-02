@@ -134,3 +134,21 @@ export const getHrSummarySchema = z.object({
     year: z.coerce.number().int().min(2000).max(2100).optional(),
     month: z.coerce.number().int().min(1).max(12).optional(),
 })
+export const createPayrollProvisionSchema = z
+    .object({
+        authUser: authUserSchema,
+        year: z.coerce.number().int().min(2000).max(2100),
+        month: z.coerce.number().int().min(1).max(12),
+        dueDate: dateSchema,
+        accountId: z.string().uuid(),
+        categoryId: z.string().uuid(),
+    })
+    .refine(
+        (data) =>
+            data.dueDate >=
+            `${data.year}-${String(data.month).padStart(2, '0')}-01`,
+        {
+            message: 'Vencimento deve ser igual ou posterior a competencia',
+            path: ['dueDate'],
+        },
+    )

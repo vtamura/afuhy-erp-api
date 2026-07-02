@@ -6,6 +6,7 @@ import {
     createEmployeeAssignmentSchema,
     createEmployeeSchema,
     createHrCatalogSchema,
+    createPayrollProvisionSchema,
     createSalaryChangeSchema,
     deleteEmployeeSchema,
     deleteHrCatalogSchema,
@@ -300,5 +301,30 @@ export class GetHrSummaryController extends BaseController<
             year: input.year,
             month: input.month,
         })
+    }
+}
+
+export class CreatePayrollProvisionController extends BaseController<
+    typeof createPayrollProvisionSchema
+> {
+    protected readonly schema = createPayrollProvisionSchema
+    constructor(private readonly service: HrService) {
+        super()
+    }
+    protected async execute(
+        input: ControllerInput<typeof createPayrollProvisionSchema>,
+    ) {
+        return {
+            statusCode: 201,
+            body: await this.service.createPayrollProvision({
+                organizationId: input.authUser.organizationId ?? null,
+                createdBy: input.authUser.userId,
+                year: input.year,
+                month: input.month,
+                dueDate: input.dueDate,
+                accountId: input.accountId,
+                categoryId: input.categoryId,
+            }),
+        }
     }
 }

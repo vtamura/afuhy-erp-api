@@ -264,6 +264,30 @@ export const hrOpenApiDocument: OpenApiModuleDocument = {
                 periodEnd: { type: 'string', format: 'date' },
             },
         },
+        PayrollProvisionInput: {
+            type: 'object',
+            required: ['year', 'month', 'dueDate', 'accountId', 'categoryId'],
+            properties: {
+                year: { type: 'integer', minimum: 2000, maximum: 2100 },
+                month: { type: 'integer', minimum: 1, maximum: 12 },
+                dueDate: { type: 'string', format: 'date' },
+                accountId: { type: 'string', format: 'uuid' },
+                categoryId: { type: 'string', format: 'uuid' },
+            },
+        },
+        PayrollProvision: {
+            type: 'object',
+            properties: {
+                id: { type: 'string', format: 'uuid' },
+                organizationId: { type: 'string', format: 'uuid' },
+                year: { type: 'integer' },
+                month: { type: 'integer' },
+                amount: { type: 'string', example: '5000.00' },
+                employeeCount: { type: 'integer' },
+                financialPayableId: { type: 'string', format: 'uuid' },
+                createdAt: { type: 'string', format: 'date-time' },
+            },
+        },
     },
     paths: {
         ...catalogPaths('/hr/departments', 'departamento'),
@@ -356,6 +380,15 @@ export const hrOpenApiDocument: OpenApiModuleDocument = {
                 summary: 'Resume quadro no mes informado ou atual',
                 permission: 'hr.employees.read',
                 response: { $ref: '#/components/schemas/HrSummary' },
+            }),
+        },
+        '/hr/payroll-provisions': {
+            post: operation({
+                summary: 'Gera provisao mensal de folha',
+                permission: 'hr.compensation.manage',
+                request: 'PayrollProvisionInput',
+                response: { $ref: '#/components/schemas/PayrollProvision' },
+                created: true,
             }),
         },
     },

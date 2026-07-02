@@ -3,6 +3,7 @@ import type {
     EmployeeEntity,
     HrCatalogEntity,
     HrSummaryEntity,
+    PayrollProvisionEntity,
     SalaryChangeEntity,
 } from '../../domain/entities/hr.entity'
 
@@ -15,6 +16,9 @@ export type SalaryChangeResponseDto = ReturnType<
     typeof toSalaryChangeResponseDto
 >
 export type HrSummaryResponseDto = HrSummaryEntity
+export type PayrollProvisionResponseDto = ReturnType<
+    typeof toPayrollProvisionResponseDto
+>
 
 export const toHrCatalogResponseDto = (entity: HrCatalogEntity) => ({
     ...entity,
@@ -65,5 +69,18 @@ export const toEmployeeAssignmentResponseDto = (
 
 export const toSalaryChangeResponseDto = (entity: SalaryChangeEntity) => ({
     ...entity,
+    createdAt: entity.createdAt.toISOString(),
+})
+
+export const toPayrollProvisionResponseDto = (
+    entity: PayrollProvisionEntity,
+) => ({
+    id: entity.id,
+    organizationId: entity.organizationId,
+    year: entity.year,
+    month: entity.month,
+    amount: entity.amount,
+    employeeCount: entity.employeeCount,
+    financialPayableId: entity.financialPayableId,
     createdAt: entity.createdAt.toISOString(),
 })

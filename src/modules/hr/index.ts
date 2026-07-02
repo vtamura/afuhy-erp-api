@@ -7,6 +7,7 @@ import { PostgresUserRepository } from '../auth/infrastructure/repositories/post
 import { JwtTokenService } from '../auth/infrastructure/security/jwt-token.service'
 import { createAuthenticateAccessTokenMiddleware } from '../auth/presentation/http/middlewares/authenticate-access-token.middleware'
 import { createAuthorizePermissionMiddleware } from '../auth/presentation/http/middlewares/authorize-permission.middleware'
+import { PostgresPayrollProvisionFinancialPort } from './infrastructure/repositories/postgres-payroll-provision-financial.port'
 import { PostgresHrRepository } from './infrastructure/repositories/postgres-hr.repository'
 import { createHrHttpRouterFactory } from './main/factories'
 import { createHrRouter } from './presentation/http/routes'
@@ -32,6 +33,8 @@ export function createHrModule(params: {
     return {
         hrRouter: createHrHttpRouterFactory({
             hrRepository: new PostgresHrRepository(databaseClient),
+            payrollProvisionFinancialPort:
+                new PostgresPayrollProvisionFinancialPort(databaseClient),
             middlewares: {
                 authenticateAccessTokenMiddleware,
                 authorizePermissionMiddleware,
