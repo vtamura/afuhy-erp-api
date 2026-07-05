@@ -5,8 +5,10 @@ import {
     UnauthorizedError,
 } from '../../../../shared/domain/errors'
 import type {
+    ContractType,
     EmployeeStatus,
     HrCatalogStatus,
+    PayFrequency,
 } from '../../domain/entities/hr.entity'
 import type {
     EmployeeData,
@@ -239,7 +241,12 @@ export class HrService {
         phone: string | null
         birthDate: string | null
         hireDate: string
-        initialSalary: string
+        currentPayAmount: string
+        contractType: ContractType
+        payFrequency: PayFrequency
+        estimatedMonthlyUnits: string
+        contractStartDate?: string
+        contractEndDate: string | null
         notes: string | null
     }) {
         const organizationId = requireOrganization(input.organizationId)
@@ -257,6 +264,12 @@ export class HrService {
                 input.hireDate,
                 'Nascimento deve ser anterior a admissao',
             )
+        if (input.contractStartDate && input.contractEndDate)
+            ensureDateOrder(
+                input.contractStartDate,
+                input.contractEndDate,
+                'Fim do contrato deve ser igual ou posterior ao inicio',
+            )
         const data: EmployeeData = {
             organizationId,
             organizationUserId: input.organizationUserId,
@@ -269,7 +282,12 @@ export class HrService {
             phone: input.phone,
             birthDate: input.birthDate,
             hireDate: input.hireDate,
-            currentSalary: input.initialSalary,
+            currentSalary: input.currentPayAmount,
+            contractType: input.contractType,
+            payFrequency: input.payFrequency,
+            estimatedMonthlyUnits: input.estimatedMonthlyUnits,
+            contractStartDate: input.contractStartDate ?? input.hireDate,
+            contractEndDate: input.contractEndDate,
             status: 'ACTIVE',
             terminationDate: null,
             terminationReason: null,
@@ -483,7 +501,12 @@ export class HrService {
     async createSalaryChange(input: {
         id: string
         organizationId: string | null
-        salary: string
+        payAmount: string
+        contractType: ContractType
+        payFrequency: PayFrequency
+        estimatedMonthlyUnits: string
+        contractStartDate?: string
+        contractEndDate: string | null
         effectiveDate: string
         reason: string | null
         createdBy: string
@@ -500,13 +523,25 @@ export class HrService {
         const latest = history[0]
         if (latest && input.effectiveDate <= latest.effectiveDate)
             throw new ConflictError(
-                'Vigencia deve ser posterior ao ultimo historico salarial',
+                'Vigencia deve ser posterior ao ultimo historico remuneratorio',
+            )
+        if (input.contractStartDate && input.contractEndDate)
+            ensureDateOrder(
+                input.contractStartDate,
+                input.contractEndDate,
+                'Fim do contrato deve ser igual ou posterior ao inicio',
             )
         return toSalaryChangeResponseDto(
             await this.repository.createSalaryChange({
                 employeeId: employee.id,
                 organizationId: employee.organizationId,
-                salary: input.salary,
+                payAmount: input.payAmount,
+                contractType: input.contractType,
+                payFrequency: input.payFrequency,
+                estimatedMonthlyUnits: input.estimatedMonthlyUnits,
+                contractStartDate:
+                    input.contractStartDate ?? input.effectiveDate,
+                contractEndDate: input.contractEndDate,
                 effectiveDate: input.effectiveDate,
                 reason: input.reason,
                 createdBy: input.createdBy,

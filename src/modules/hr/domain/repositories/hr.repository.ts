@@ -1,11 +1,13 @@
 import type {
     EmployeeAssignmentEntity,
+    ContractType,
     EmployeeEntity,
     EmployeeStatus,
     HrCatalogEntity,
     HrCatalogStatus,
     HrSummaryEntity,
     PayrollProvisionEntity,
+    PayFrequency,
     SalaryChangeEntity,
 } from '../entities/hr.entity'
 
@@ -29,6 +31,11 @@ export type EmployeeData = {
     birthDate: string | null
     hireDate: string
     currentSalary: string
+    contractType: ContractType
+    payFrequency: PayFrequency
+    estimatedMonthlyUnits: string
+    contractStartDate: string
+    contractEndDate: string | null
     status: EmployeeStatus
     terminationDate: string | null
     terminationReason: string | null
@@ -101,7 +108,15 @@ export interface HrRepository {
         organizationId: string
         data: Omit<
             EmployeeData,
-            'organizationId' | 'departmentId' | 'positionId' | 'currentSalary'
+            | 'organizationId'
+            | 'departmentId'
+            | 'positionId'
+            | 'currentSalary'
+            | 'contractType'
+            | 'payFrequency'
+            | 'estimatedMonthlyUnits'
+            | 'contractStartDate'
+            | 'contractEndDate'
         >
     }): Promise<EmployeeEntity | null>
     deleteEmployee(input: {
@@ -133,7 +148,12 @@ export interface HrRepository {
     createSalaryChange(input: {
         employeeId: string
         organizationId: string
-        salary: string
+        payAmount: string
+        contractType: ContractType
+        payFrequency: PayFrequency
+        estimatedMonthlyUnits: string
+        contractStartDate: string
+        contractEndDate: string | null
         effectiveDate: string
         reason: string | null
         createdBy: string

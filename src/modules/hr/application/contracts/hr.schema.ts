@@ -7,6 +7,14 @@ const dateSchema = z
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve usar o formato YYYY-MM-DD')
 const statusSchema = z.enum(['ACTIVE', 'ON_LEAVE', 'TERMINATED'])
 const catalogStatusSchema = z.enum(['ACTIVE', 'INACTIVE'])
+const contractTypeSchema = z.enum(['CLT', 'TEMPORARY', 'PJ', 'FREELANCER'])
+const payFrequencySchema = z.enum([
+    'MONTHLY',
+    'WEEKLY',
+    'BIWEEKLY',
+    'DAILY',
+    'HOURLY',
+])
 const nullableText = (max: number) =>
     z
         .string()
@@ -28,6 +36,11 @@ const moneySchema = z
     .regex(/^\d{1,13}(?:\.\d{1,2})?$/, 'Valor monetario invalido')
     .transform(normalizeHrMoney)
     .refine((value) => value !== '0.00', 'Valor deve ser maior que zero')
+const monthlyUnitsSchema = z.coerce
+    .number()
+    .positive('Unidades mensais estimadas deve ser maior que zero')
+    .max(10000, 'Unidades mensais estimadas muito alta')
+    .transform((value) => value.toFixed(4))
 const cpfSchema = z
     .string()
     .trim()
@@ -52,6 +65,63 @@ const idWithAuth = z.object({
     id: z.string().uuid(),
     authUser: authUserSchema,
 })
+
+const compensationFields = {
+    contractType: contractTypeSchema,
+    payFrequency: payFrequencySchema,
+    estimatedMonthlyUnits: monthlyUnitsSchema.optional(),
+    contractStartDate: dateSchema.optional(),
+    contractEndDate: dateSchema
+        .nullable()
+        .optional()
+        .transform((value) => value ?? null),
+}
+
+const normalizeCompensation = <
+    T extends {
+        contractType: z.infer<typeof contractTypeSchema>
+        payFrequency: z.infer<typeof payFrequencySchema>
+        estimatedMonthlyUnits?: string
+        contractEndDate: string | null
+    },
+>(
+    value: T,
+    context: z.RefinementCtx,
+) => {
+    let estimatedMonthlyUnits = value.estimatedMonthlyUnits
+    if (value.payFrequency === 'MONTHLY') estimatedMonthlyUnits = '1.0000'
+    if (value.payFrequency === 'WEEKLY') estimatedMonthlyUnits ??= '4.3333'
+    if (value.payFrequency === 'BIWEEKLY') estimatedMonthlyUnits ??= '2.0000'
+    if (
+        (value.payFrequency === 'DAILY' || value.payFrequency === 'HOURLY') &&
+        !estimatedMonthlyUnits
+    ) {
+        context.addIssue({
+            code: 'custom',
+            path: ['estimatedMonthlyUnits'],
+            message:
+                'Unidades mensais estimadas sao obrigatorias para pagamento diario ou por hora',
+        })
+    }
+    if (value.contractType === 'TEMPORARY' && !value.contractEndDate) {
+        context.addIssue({
+            code: 'custom',
+            path: ['contractEndDate'],
+            message: 'Contrato temporario exige data final',
+        })
+    }
+    if (value.contractType === 'CLT' && value.contractEndDate) {
+        context.addIssue({
+            code: 'custom',
+            path: ['contractEndDate'],
+            message: 'Contrato CLT nao deve ter data final no MVP',
+        })
+    }
+    return {
+        ...value,
+        estimatedMonthlyUnits: estimatedMonthlyUnits ?? '1.0000',
+    }
+}
 
 export const createHrCatalogSchema = catalogPayload.extend({
     authUser: authUserSchema,
@@ -82,14 +152,17 @@ const employeeEditable = {
     notes: nullableText(10000),
 }
 
-export const createEmployeeSchema = z.object({
-    ...employeeEditable,
-    departmentId: z.string().uuid(),
-    positionId: z.string().uuid(),
-    hireDate: dateSchema,
-    initialSalary: moneySchema,
-    authUser: authUserSchema,
-})
+export const createEmployeeSchema = z
+    .object({
+        ...employeeEditable,
+        departmentId: z.string().uuid(),
+        positionId: z.string().uuid(),
+        hireDate: dateSchema,
+        currentPayAmount: moneySchema,
+        ...compensationFields,
+        authUser: authUserSchema,
+    })
+    .transform(normalizeCompensation)
 export const updateEmployeeSchema = z
     .object({
         ...employeeEditable,
@@ -123,11 +196,14 @@ export const createEmployeeAssignmentSchema = idWithAuth.extend({
     reason: nullableText(500),
 })
 export const listEmployeeAssignmentsSchema = idWithAuth
-export const createSalaryChangeSchema = idWithAuth.extend({
-    salary: moneySchema,
-    effectiveDate: dateSchema,
-    reason: nullableText(500),
-})
+export const createSalaryChangeSchema = idWithAuth
+    .extend({
+        payAmount: moneySchema,
+        ...compensationFields,
+        effectiveDate: dateSchema,
+        reason: nullableText(500),
+    })
+    .transform(normalizeCompensation)
 export const listSalaryChangesSchema = idWithAuth
 export const getHrSummarySchema = z.object({
     authUser: authUserSchema,

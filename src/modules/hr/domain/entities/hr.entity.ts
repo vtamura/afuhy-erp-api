@@ -1,5 +1,12 @@
 export type HrCatalogStatus = 'ACTIVE' | 'INACTIVE'
 export type EmployeeStatus = 'ACTIVE' | 'ON_LEAVE' | 'TERMINATED'
+export type ContractType = 'CLT' | 'TEMPORARY' | 'PJ' | 'FREELANCER'
+export type PayFrequency =
+    | 'MONTHLY'
+    | 'WEEKLY'
+    | 'BIWEEKLY'
+    | 'DAILY'
+    | 'HOURLY'
 
 export type HrCatalogEntity = {
     id: string
@@ -30,6 +37,11 @@ export type EmployeeEntity = {
     birthDate: string | null
     hireDate: string
     currentSalary: string
+    contractType: ContractType
+    payFrequency: PayFrequency
+    estimatedMonthlyUnits: string
+    contractStartDate: string
+    contractEndDate: string | null
     status: EmployeeStatus
     terminationDate: string | null
     terminationReason: string | null
@@ -58,7 +70,12 @@ export type SalaryChangeEntity = {
     id: string
     organizationId: string
     employeeId: string
-    salary: string
+    payAmount: string
+    contractType: ContractType
+    payFrequency: PayFrequency
+    estimatedMonthlyUnits: string
+    contractStartDate: string
+    contractEndDate: string | null
     effectiveDate: string
     reason: string | null
     createdBy: string

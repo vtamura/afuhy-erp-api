@@ -18,6 +18,11 @@ module.exports = {
                 birth_date DATE,
                 hire_date DATE NOT NULL,
                 current_salary NUMERIC(15, 2) NOT NULL,
+                contract_type VARCHAR(20) NOT NULL,
+                pay_frequency VARCHAR(20) NOT NULL,
+                estimated_monthly_units NUMERIC(10, 4) NOT NULL,
+                contract_start_date DATE NOT NULL,
+                contract_end_date DATE,
                 status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
                 termination_date DATE,
                 termination_reason VARCHAR(500),
@@ -26,6 +31,21 @@ module.exports = {
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 deleted_at TIMESTAMPTZ,
                 CONSTRAINT hr_employees_salary_check CHECK (current_salary > 0),
+                CONSTRAINT hr_employees_estimated_units_check
+                    CHECK (estimated_monthly_units > 0),
+                CONSTRAINT hr_employees_contract_type_check
+                    CHECK (contract_type IN ('CLT', 'TEMPORARY', 'PJ', 'FREELANCER')),
+                CONSTRAINT hr_employees_pay_frequency_check
+                    CHECK (pay_frequency IN ('MONTHLY', 'WEEKLY', 'BIWEEKLY', 'DAILY', 'HOURLY')),
+                CONSTRAINT hr_employees_contract_dates_check CHECK (
+                    contract_end_date IS NULL OR contract_end_date >= contract_start_date
+                ),
+                CONSTRAINT hr_employees_temporary_end_date_check CHECK (
+                    contract_type <> 'TEMPORARY' OR contract_end_date IS NOT NULL
+                ),
+                CONSTRAINT hr_employees_clt_end_date_check CHECK (
+                    contract_type <> 'CLT' OR contract_end_date IS NULL
+                ),
                 CONSTRAINT hr_employees_status_check
                     CHECK (status IN ('ACTIVE', 'ON_LEAVE', 'TERMINATED')),
                 CONSTRAINT hr_employees_termination_check CHECK (

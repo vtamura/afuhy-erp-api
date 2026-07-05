@@ -138,7 +138,9 @@ export const hrOpenApiDocument: OpenApiModuleDocument = {
                 'departmentId',
                 'positionId',
                 'hireDate',
-                'initialSalary',
+                'currentPayAmount',
+                'contractType',
+                'payFrequency',
             ],
             properties: {
                 organizationUserId: {
@@ -159,9 +161,36 @@ export const hrOpenApiDocument: OpenApiModuleDocument = {
                     nullable: true,
                 },
                 hireDate: { type: 'string', format: 'date' },
-                initialSalary: {
+                currentPayAmount: {
                     type: 'string',
                     pattern: '^\\d{1,13}(\\.\\d{1,2})?$',
+                },
+                contractType: {
+                    type: 'string',
+                    enum: ['CLT', 'TEMPORARY', 'PJ', 'FREELANCER'],
+                },
+                payFrequency: {
+                    type: 'string',
+                    enum: ['MONTHLY', 'WEEKLY', 'BIWEEKLY', 'DAILY', 'HOURLY'],
+                },
+                estimatedMonthlyUnits: {
+                    type: 'string',
+                    description:
+                        'Unidades mensais estimadas para converter a remuneracao em equivalente mensal. MONTHLY usa 1; WEEKLY usa 4.3333 por padrao; BIWEEKLY usa 2 por padrao; DAILY/HOURLY exigem valor.',
+                    example: '4.3333',
+                },
+                contractStartDate: {
+                    type: 'string',
+                    format: 'date',
+                    description:
+                        'Inicio do contrato. Se omitido na criacao, usa a data de admissao.',
+                },
+                contractEndDate: {
+                    type: 'string',
+                    format: 'date',
+                    nullable: true,
+                    description:
+                        'Obrigatorio para TEMPORARY e nao permitido para CLT no MVP.',
                 },
                 notes: { type: 'string', nullable: true },
             },
@@ -186,6 +215,16 @@ export const hrOpenApiDocument: OpenApiModuleDocument = {
                 phone: { type: 'string', nullable: true },
                 birthDate: { type: 'string', format: 'date', nullable: true },
                 hireDate: { type: 'string', format: 'date' },
+                contractType: {
+                    type: 'string',
+                    enum: ['CLT', 'TEMPORARY', 'PJ', 'FREELANCER'],
+                },
+                contractStartDate: { type: 'string', format: 'date' },
+                contractEndDate: {
+                    type: 'string',
+                    format: 'date',
+                    nullable: true,
+                },
                 status: {
                     type: 'string',
                     enum: ['ACTIVE', 'ON_LEAVE', 'TERMINATED'],
@@ -227,11 +266,39 @@ export const hrOpenApiDocument: OpenApiModuleDocument = {
         },
         SalaryChangeInput: {
             type: 'object',
-            required: ['salary', 'effectiveDate'],
+            required: [
+                'payAmount',
+                'contractType',
+                'payFrequency',
+                'effectiveDate',
+            ],
             properties: {
-                salary: {
+                payAmount: {
                     type: 'string',
                     pattern: '^\\d{1,13}(\\.\\d{1,2})?$',
+                },
+                contractType: {
+                    type: 'string',
+                    enum: ['CLT', 'TEMPORARY', 'PJ', 'FREELANCER'],
+                },
+                payFrequency: {
+                    type: 'string',
+                    enum: ['MONTHLY', 'WEEKLY', 'BIWEEKLY', 'DAILY', 'HOURLY'],
+                },
+                estimatedMonthlyUnits: {
+                    type: 'string',
+                    example: '4.3333',
+                },
+                contractStartDate: {
+                    type: 'string',
+                    format: 'date',
+                    description:
+                        'Inicio do contrato. Se omitido, usa a data de vigencia.',
+                },
+                contractEndDate: {
+                    type: 'string',
+                    format: 'date',
+                    nullable: true,
                 },
                 effectiveDate: { type: 'string', format: 'date' },
                 reason: { type: 'string', nullable: true },

@@ -106,7 +106,10 @@ export class PostgresPayrollProvisionFinancialPort implements PayrollProvisionFi
         }>(
             `
                 SELECT
-                    COALESCE(SUM(current_salary), 0)::TEXT AS amount,
+                    COALESCE(
+                        ROUND(SUM(current_salary * estimated_monthly_units), 2),
+                        0
+                    )::TEXT AS amount,
                     COUNT(*)::TEXT AS employee_count
                 FROM hr_employees
                 WHERE organization_id = :organizationId
@@ -136,7 +139,7 @@ export class PostgresPayrollProvisionFinancialPort implements PayrollProvisionFi
         const competence = `${String(input.month).padStart(2, '0')}/${input.year}`
         const description = `Provisao de folha - ${competence}`
         const notes =
-            'Valor gerado pelo RH com base apenas nos salarios atuais dos colaboradores ativos. Nao inclui encargos, beneficios, descontos, ferias, 13o ou rescisoes.'
+            'Valor gerado pelo RH com base na remuneracao mensal estimada dos colaboradores ativos: valor contratado multiplicado pelas unidades mensais estimadas. Nao inclui encargos, beneficios, descontos, ferias, 13o, rescisoes, ponto ou fechamento real de horas/dias.'
 
         const [transaction] = await client.query<{ id: string }>(
             `

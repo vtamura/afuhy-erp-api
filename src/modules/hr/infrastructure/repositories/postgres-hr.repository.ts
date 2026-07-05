@@ -1,6 +1,7 @@
 import type { DatabaseClient } from '../../../../shared/infrastructure/database/sequelize.client'
 import { getDatabaseClient } from '../../../../shared/infrastructure/database/sequelize.client'
 import type {
+    ContractType,
     EmployeeAssignmentEntity,
     EmployeeEntity,
     EmployeeStatus,
@@ -8,6 +9,7 @@ import type {
     HrCatalogStatus,
     HrSummaryEntity,
     PayrollProvisionEntity,
+    PayFrequency,
     SalaryChangeEntity,
 } from '../../domain/entities/hr.entity'
 import type {
@@ -46,6 +48,11 @@ type EmployeeRow = {
     birth_date: string | null
     hire_date: string
     current_salary: string
+    contract_type: ContractType
+    pay_frequency: PayFrequency
+    estimated_monthly_units: string
+    contract_start_date: string
+    contract_end_date: string | null
     status: EmployeeStatus
     termination_date: string | null
     termination_reason: string | null
@@ -72,7 +79,12 @@ type SalaryRow = {
     id: string
     organization_id: string
     employee_id: string
-    salary: string
+    pay_amount: string
+    contract_type: ContractType
+    pay_frequency: PayFrequency
+    estimated_monthly_units: string
+    contract_start_date: string
+    contract_end_date: string | null
     effective_date: string
     reason: string | null
     created_by: string
@@ -260,13 +272,17 @@ export class PostgresHrRepository implements HrRepository {
                     INSERT INTO hr_employees (
                         organization_id, organization_user_id, department_id,
                         position_id, name, cpf, registration, email, phone,
-                        birth_date, hire_date, current_salary, status,
+                        birth_date, hire_date, current_salary, contract_type,
+                        pay_frequency, estimated_monthly_units,
+                        contract_start_date, contract_end_date, status,
                         termination_date, termination_reason, notes
                     )
                     VALUES (
                         :organizationId, :organizationUserId, :departmentId,
                         :positionId, :name, :cpf, :registration, :email, :phone,
-                        :birthDate, :hireDate, :currentSalary, :status,
+                        :birthDate, :hireDate, :currentSalary, :contractType,
+                        :payFrequency, :estimatedMonthlyUnits,
+                        :contractStartDate, :contractEndDate, :status,
                         :terminationDate, :terminationReason, :notes
                     )
                     RETURNING id
@@ -296,18 +312,27 @@ export class PostgresHrRepository implements HrRepository {
             await client.query(
                 `
                     INSERT INTO hr_salary_changes (
-                        organization_id, employee_id, salary, effective_date,
+                        organization_id, employee_id, pay_amount, contract_type,
+                        pay_frequency, estimated_monthly_units,
+                        contract_start_date, contract_end_date, effective_date,
                         reason, created_by
                     )
                     VALUES (
-                        :organizationId, :employeeId, :salary, :effectiveDate,
+                        :organizationId, :employeeId, :payAmount, :contractType,
+                        :payFrequency, :estimatedMonthlyUnits,
+                        :contractStartDate, :contractEndDate, :effectiveDate,
                         'Admissao', :createdBy
                     )
                 `,
                 {
                     organizationId: input.data.organizationId,
                     employeeId: row.id,
-                    salary: input.data.currentSalary,
+                    payAmount: input.data.currentSalary,
+                    contractType: input.data.contractType,
+                    payFrequency: input.data.payFrequency,
+                    estimatedMonthlyUnits: input.data.estimatedMonthlyUnits,
+                    contractStartDate: input.data.contractStartDate,
+                    contractEndDate: input.data.contractEndDate,
                     effectiveDate: input.data.hireDate,
                     createdBy: input.createdBy,
                 },
@@ -392,7 +417,15 @@ export class PostgresHrRepository implements HrRepository {
         organizationId: string
         data: Omit<
             EmployeeData,
-            'organizationId' | 'departmentId' | 'positionId' | 'currentSalary'
+            | 'organizationId'
+            | 'departmentId'
+            | 'positionId'
+            | 'currentSalary'
+            | 'contractType'
+            | 'payFrequency'
+            | 'estimatedMonthlyUnits'
+            | 'contractStartDate'
+            | 'contractEndDate'
         >
     }) {
         const rows = await this.databaseClient.query<{ id: string }>(
@@ -545,7 +578,12 @@ export class PostgresHrRepository implements HrRepository {
     async createSalaryChange(input: {
         employeeId: string
         organizationId: string
-        salary: string
+        payAmount: string
+        contractType: ContractType
+        payFrequency: PayFrequency
+        estimatedMonthlyUnits: string
+        contractStartDate: string
+        contractEndDate: string | null
         effectiveDate: string
         reason: string | null
         createdBy: string
@@ -554,11 +592,15 @@ export class PostgresHrRepository implements HrRepository {
             const [row] = await client.query<{ id: string }>(
                 `
                     INSERT INTO hr_salary_changes (
-                        organization_id, employee_id, salary, effective_date,
+                        organization_id, employee_id, pay_amount, contract_type,
+                        pay_frequency, estimated_monthly_units,
+                        contract_start_date, contract_end_date, effective_date,
                         reason, created_by
                     )
                     VALUES (
-                        :organizationId, :employeeId, :salary, :effectiveDate,
+                        :organizationId, :employeeId, :payAmount, :contractType,
+                        :payFrequency, :estimatedMonthlyUnits,
+                        :contractStartDate, :contractEndDate, :effectiveDate,
                         :reason, :createdBy
                     )
                     RETURNING id
@@ -568,7 +610,13 @@ export class PostgresHrRepository implements HrRepository {
             await client.query(
                 `
                     UPDATE hr_employees
-                    SET current_salary = :salary, updated_at = NOW()
+                    SET current_salary = :payAmount,
+                        contract_type = :contractType,
+                        pay_frequency = :payFrequency,
+                        estimated_monthly_units = :estimatedMonthlyUnits,
+                        contract_start_date = :contractStartDate,
+                        contract_end_date = :contractEndDate,
+                        updated_at = NOW()
                     WHERE id = :employeeId
                         AND organization_id = :organizationId
                 `,
@@ -796,6 +844,13 @@ export class PostgresHrRepository implements HrRepository {
             birthDate: row.birth_date ? String(row.birth_date) : null,
             hireDate: String(row.hire_date),
             currentSalary: String(row.current_salary),
+            contractType: row.contract_type,
+            payFrequency: row.pay_frequency,
+            estimatedMonthlyUnits: String(row.estimated_monthly_units),
+            contractStartDate: String(row.contract_start_date),
+            contractEndDate: row.contract_end_date
+                ? String(row.contract_end_date)
+                : null,
             status: row.status,
             terminationDate: row.termination_date
                 ? String(row.termination_date)
@@ -830,7 +885,14 @@ export class PostgresHrRepository implements HrRepository {
             id: row.id,
             organizationId: row.organization_id,
             employeeId: row.employee_id,
-            salary: String(row.salary),
+            payAmount: String(row.pay_amount),
+            contractType: row.contract_type,
+            payFrequency: row.pay_frequency,
+            estimatedMonthlyUnits: String(row.estimated_monthly_units),
+            contractStartDate: String(row.contract_start_date),
+            contractEndDate: row.contract_end_date
+                ? String(row.contract_end_date)
+                : null,
             effectiveDate: String(row.effective_date),
             reason: row.reason,
             createdBy: row.created_by,

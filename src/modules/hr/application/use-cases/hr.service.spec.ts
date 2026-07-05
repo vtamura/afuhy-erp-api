@@ -53,6 +53,11 @@ const employee = (overrides: Partial<EmployeeEntity> = {}): EmployeeEntity => ({
     birthDate: '1990-01-01',
     hireDate: '2026-01-10',
     currentSalary: '5000.00',
+    contractType: 'CLT',
+    payFrequency: 'MONTHLY',
+    estimatedMonthlyUnits: '1.0000',
+    contractStartDate: '2026-01-10',
+    contractEndDate: null,
     status: 'ACTIVE',
     terminationDate: null,
     terminationReason: null,
@@ -84,7 +89,12 @@ const salary = (effectiveDate = '2026-01-10'): SalaryChangeEntity => ({
     id: '77777777-7777-4777-8777-777777777777',
     organizationId,
     employeeId,
-    salary: '5000.00',
+    payAmount: '5000.00',
+    contractType: 'CLT',
+    payFrequency: 'MONTHLY',
+    estimatedMonthlyUnits: '1.0000',
+    contractStartDate: '2026-01-10',
+    contractEndDate: null,
     effectiveDate,
     reason: 'Admissao',
     createdBy: userId,
@@ -217,7 +227,12 @@ describe('HrService', () => {
             phone: null,
             birthDate: '1990-01-01',
             hireDate: '2026-01-10',
-            initialSalary: '5000.00',
+            currentPayAmount: '5000.00',
+            contractType: 'CLT',
+            payFrequency: 'MONTHLY',
+            estimatedMonthlyUnits: '1.0000',
+            contractStartDate: '2026-01-10',
+            contractEndDate: null,
             notes: null,
         })
 
@@ -226,6 +241,11 @@ describe('HrService', () => {
                 createdBy: userId,
                 data: expect.objectContaining({
                     currentSalary: '5000.00',
+                    contractType: 'CLT',
+                    payFrequency: 'MONTHLY',
+                    estimatedMonthlyUnits: '1.0000',
+                    contractStartDate: '2026-01-10',
+                    contractEndDate: null,
                     status: 'ACTIVE',
                 }),
             }),
@@ -255,7 +275,12 @@ describe('HrService', () => {
                 phone: null,
                 birthDate: '1990-01-01',
                 hireDate: '2026-01-10',
-                initialSalary: '5000.00',
+                currentPayAmount: '5000.00',
+                contractType: 'CLT',
+                payFrequency: 'MONTHLY',
+                estimatedMonthlyUnits: '1.0000',
+                contractStartDate: '2026-01-10',
+                contractEndDate: null,
                 notes: null,
             }),
         ).rejects.toBeInstanceOf(BadRequestError)
@@ -344,7 +369,7 @@ describe('HrService', () => {
         ).rejects.toBeInstanceOf(ConflictError)
     })
 
-    it('records salary changes without exposing them in employee responses', async () => {
+    it('records remuneration changes without exposing them in employee responses', async () => {
         const repository = repositoryMock()
         repository.findEmployeeById.mockResolvedValue(employee())
         repository.listSalaryChanges.mockResolvedValue([salary('2026-01-10')])
@@ -355,7 +380,12 @@ describe('HrService', () => {
             service.createSalaryChange({
                 id: employeeId,
                 organizationId,
-                salary: '6000.00',
+                payAmount: '6000.00',
+                contractType: 'TEMPORARY',
+                payFrequency: 'WEEKLY',
+                estimatedMonthlyUnits: '4.3333',
+                contractStartDate: '2026-06-01',
+                contractEndDate: '2026-12-31',
                 effectiveDate: '2026-06-01',
                 reason: 'Merito',
                 createdBy: userId,
