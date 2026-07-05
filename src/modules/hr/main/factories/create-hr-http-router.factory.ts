@@ -1,6 +1,7 @@
 import { HrService } from '../../application/use-cases'
 import type { HrRepository } from '../../domain/repositories/hr.repository'
 import {
+    CreateCompensationPreviewController,
     CreateEmployeeAssignmentController,
     CreateEmployeeController,
     CreateHrCatalogController,
@@ -43,6 +44,9 @@ export function createHrHttpRouterFactory(
         controllers: {
             departments: catalogControllers(service, 'department'),
             positions: catalogControllers(service, 'position'),
+            createCompensationPreview: new CreateCompensationPreviewController(
+                service,
+            ),
             createEmployee: new CreateEmployeeController(service),
             listEmployees: new ListEmployeesController(service),
             getEmployee: new GetEmployeeController(service),

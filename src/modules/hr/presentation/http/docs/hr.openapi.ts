@@ -176,8 +176,11 @@ export const hrOpenApiDocument: OpenApiModuleDocument = {
                 estimatedMonthlyUnits: {
                     type: 'string',
                     description:
-                        'Unidades mensais estimadas para converter a remuneracao em equivalente mensal. MONTHLY usa 1; WEEKLY usa 4.3333 por padrao; BIWEEKLY usa 2 por padrao; DAILY/HOURLY exigem valor.',
+                        'Campo tecnico/avancado. Preferir estimatedWorkload para o backend calcular automaticamente.',
                     example: '4.3333',
+                },
+                estimatedWorkload: {
+                    $ref: '#/components/schemas/EstimatedWorkloadInput',
                 },
                 contractStartDate: {
                     type: 'string',
@@ -287,7 +290,12 @@ export const hrOpenApiDocument: OpenApiModuleDocument = {
                 },
                 estimatedMonthlyUnits: {
                     type: 'string',
+                    description:
+                        'Campo tecnico/avancado. Preferir estimatedWorkload para o backend calcular automaticamente.',
                     example: '4.3333',
+                },
+                estimatedWorkload: {
+                    $ref: '#/components/schemas/EstimatedWorkloadInput',
                 },
                 contractStartDate: {
                     type: 'string',
@@ -355,10 +363,134 @@ export const hrOpenApiDocument: OpenApiModuleDocument = {
                 createdAt: { type: 'string', format: 'date-time' },
             },
         },
+        EstimatedWorkloadInput: {
+            type: 'object',
+            description:
+                'Entrada amigavel para calcular estimatedMonthlyUnits sem expor o campo tecnico ao usuario.',
+            required: ['unit'],
+            properties: {
+                unit: {
+                    type: 'string',
+                    enum: [
+                        'FIXED_MONTHLY',
+                        'WEEKS_PER_MONTH',
+                        'FORTNIGHTS_PER_MONTH',
+                        'DAYS_PER_MONTH',
+                        'DAYS_PER_WEEK',
+                        'HOURS_PER_MONTH',
+                        'HOURS_PER_WEEK',
+                    ],
+                },
+                amount: {
+                    type: 'number',
+                    description:
+                        'Quantidade estimada. Obrigatoria para dias/horas; opcional para defaults mensais, semanais e quinzenais.',
+                    example: 40,
+                },
+            },
+        },
+        CompensationPreviewInput: {
+            type: 'object',
+            required: ['contractType', 'payFrequency', 'payAmount'],
+            properties: {
+                contractType: {
+                    type: 'string',
+                    enum: ['CLT', 'TEMPORARY', 'PJ', 'FREELANCER'],
+                },
+                payFrequency: {
+                    type: 'string',
+                    enum: ['MONTHLY', 'WEEKLY', 'BIWEEKLY', 'DAILY', 'HOURLY'],
+                },
+                payAmount: {
+                    type: 'string',
+                    pattern: '^\\d{1,13}(\\.\\d{1,2})?$',
+                    example: '50.00',
+                },
+                estimatedWorkload: {
+                    $ref: '#/components/schemas/EstimatedWorkloadInput',
+                },
+                estimatedMonthlyUnits: {
+                    type: 'string',
+                    description:
+                        'Campo tecnico/avancado usado apenas quando estimatedWorkload nao for informado.',
+                    example: '160.0000',
+                },
+            },
+            examples: [
+                {
+                    contractType: 'FREELANCER',
+                    payFrequency: 'HOURLY',
+                    payAmount: '50.00',
+                    estimatedWorkload: {
+                        unit: 'HOURS_PER_WEEK',
+                        amount: 40,
+                    },
+                },
+                {
+                    contractType: 'TEMPORARY',
+                    payFrequency: 'DAILY',
+                    payAmount: '200.00',
+                    estimatedWorkload: {
+                        unit: 'DAYS_PER_MONTH',
+                        amount: 22,
+                    },
+                },
+                {
+                    contractType: 'CLT',
+                    payFrequency: 'MONTHLY',
+                    payAmount: '5000.00',
+                },
+            ],
+        },
+        CompensationPreview: {
+            type: 'object',
+            properties: {
+                payAmount: { type: 'string', example: '50.00' },
+                payFrequency: {
+                    type: 'string',
+                    enum: ['MONTHLY', 'WEEKLY', 'BIWEEKLY', 'DAILY', 'HOURLY'],
+                },
+                estimatedWorkload: {
+                    oneOf: [
+                        { $ref: '#/components/schemas/EstimatedWorkloadInput' },
+                        { type: 'null' },
+                    ],
+                },
+                estimatedMonthlyUnits: {
+                    type: 'string',
+                    example: '173.3320',
+                },
+                estimatedMonthlyAmount: {
+                    type: 'string',
+                    example: '8666.60',
+                },
+                formula: {
+                    type: 'string',
+                    example: '50.00 x (40 x 4.3333)',
+                },
+                explanation: {
+                    type: 'string',
+                    example:
+                        'Estimamos 40 horas por semana multiplicadas pela media de 4,3333 semanas por mes.',
+                },
+                hints: {
+                    type: 'array',
+                    items: { type: 'string' },
+                },
+            },
+        },
     },
     paths: {
         ...catalogPaths('/hr/departments', 'departamento'),
         ...catalogPaths('/hr/positions', 'cargo'),
+        '/hr/compensation/preview': {
+            post: operation({
+                summary: 'Previsualiza remuneracao mensal estimada',
+                permission: 'hr.compensation.read',
+                request: 'CompensationPreviewInput',
+                response: { $ref: '#/components/schemas/CompensationPreview' },
+            }),
+        },
         '/hr/employees': {
             get: operation({
                 summary: 'Lista funcionarios com filtros e paginacao',

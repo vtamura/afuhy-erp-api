@@ -405,6 +405,30 @@ describe('HrService', () => {
         expect(repository.deleteEmployee).not.toHaveBeenCalled()
     })
 
+    it('previews compensation without writing data', () => {
+        const repository = repositoryMock()
+        const financialPort = financialPortMock()
+        const service = makeService(repository, financialPort)
+
+        expect(
+            service.previewCompensation({
+                organizationId,
+                payAmount: '50.00',
+                payFrequency: 'HOURLY',
+                estimatedWorkload: {
+                    unit: 'HOURS_PER_WEEK',
+                    amount: 40,
+                },
+            }),
+        ).toMatchObject({
+            estimatedMonthlyUnits: '173.3320',
+            estimatedMonthlyAmount: '8666.60',
+        })
+        expect(repository.createEmployee).not.toHaveBeenCalled()
+        expect(repository.createSalaryChange).not.toHaveBeenCalled()
+        expect(financialPort.createPayrollProvision).not.toHaveBeenCalled()
+    })
+
     it('creates a monthly payroll provision and blocks duplicate periods', async () => {
         const repository = repositoryMock()
         const financialPort = financialPortMock()

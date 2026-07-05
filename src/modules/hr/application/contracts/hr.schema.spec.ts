@@ -1,4 +1,8 @@
-import { createEmployeeSchema, createSalaryChangeSchema } from './hr.schema'
+import {
+    createCompensationPreviewSchema,
+    createEmployeeSchema,
+    createSalaryChangeSchema,
+} from './hr.schema'
 
 const authUser = {
     userId: '22222222-2222-4222-8222-222222222222',
@@ -67,9 +71,7 @@ describe('hr contract schemas', () => {
                 contractType: 'PJ',
                 payFrequency: 'DAILY',
             }),
-        ).toThrow(
-            'Unidades mensais estimadas sao obrigatorias para pagamento diario ou por hora',
-        )
+        ).toThrow('Informe a carga estimada em dias por mes ou dias por semana')
 
         expect(
             createSalaryChangeSchema.parse({
@@ -98,5 +100,71 @@ describe('hr contract schemas', () => {
                 contractEndDate: '2026-12-31',
             }),
         ).toThrow('Contrato CLT nao deve ter data final no MVP')
+    })
+
+    it('calculates estimated units from friendly workload and prefers it over technical units', () => {
+        expect(
+            createEmployeeSchema.parse({
+                ...employeePayload,
+                contractType: 'PJ',
+                payFrequency: 'DAILY',
+                estimatedMonthlyUnits: '10.0000',
+                estimatedWorkload: {
+                    unit: 'DAYS_PER_MONTH',
+                    amount: 22,
+                },
+            }),
+        ).toMatchObject({
+            estimatedMonthlyUnits: '22.0000',
+        })
+
+        expect(
+            createSalaryChangeSchema.parse({
+                authUser,
+                id: '66666666-6666-4666-8666-666666666666',
+                payAmount: '50',
+                contractType: 'FREELANCER',
+                payFrequency: 'HOURLY',
+                estimatedWorkload: {
+                    unit: 'HOURS_PER_WEEK',
+                    amount: 40,
+                },
+                effectiveDate: '2026-06-01',
+                reason: null,
+            }),
+        ).toMatchObject({
+            estimatedMonthlyUnits: '173.3320',
+        })
+    })
+
+    it('validates compensation preview payloads', () => {
+        expect(
+            createCompensationPreviewSchema.parse({
+                authUser,
+                payAmount: '50',
+                contractType: 'FREELANCER',
+                payFrequency: 'HOURLY',
+                estimatedWorkload: {
+                    unit: 'HOURS_PER_WEEK',
+                    amount: 40,
+                },
+            }),
+        ).toMatchObject({
+            payAmount: '50.00',
+            estimatedMonthlyUnits: '173.3320',
+        })
+
+        expect(() =>
+            createCompensationPreviewSchema.parse({
+                authUser,
+                payAmount: '50',
+                contractType: 'FREELANCER',
+                payFrequency: 'HOURLY',
+                estimatedWorkload: {
+                    unit: 'DAYS_PER_MONTH',
+                    amount: 22,
+                },
+            }),
+        ).toThrow('Carga estimada DAYS_PER_MONTH nao e compativel')
     })
 })

@@ -24,6 +24,10 @@ import {
     toPayrollProvisionResponseDto,
     toSalaryChangeResponseDto,
 } from '../dto'
+import {
+    estimateHrCompensation,
+    type EstimatedWorkload,
+} from '../services/hr-compensation-estimator'
 
 const requireOrganization = (organizationId: string | null) => {
     if (!organizationId)
@@ -605,5 +609,16 @@ export class HrService {
                 organizationId,
             }),
         )
+    }
+
+    previewCompensation(input: {
+        organizationId: string | null
+        payAmount: string
+        payFrequency: PayFrequency
+        estimatedWorkload?: EstimatedWorkload
+        estimatedMonthlyUnits?: string
+    }) {
+        requireOrganization(input.organizationId)
+        return estimateHrCompensation(input)
     }
 }

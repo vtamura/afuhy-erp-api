@@ -3,6 +3,7 @@ import {
     type ControllerInput,
 } from '../../../../../shared/presentation/http/controllers'
 import {
+    createCompensationPreviewSchema,
     createEmployeeAssignmentSchema,
     createEmployeeSchema,
     createHrCatalogSchema,
@@ -145,6 +146,26 @@ export class CreateEmployeeController extends BaseController<
                 createdBy: input.authUser.userId,
             }),
         }
+    }
+}
+
+export class CreateCompensationPreviewController extends BaseController<
+    typeof createCompensationPreviewSchema
+> {
+    protected readonly schema = createCompensationPreviewSchema
+    constructor(private readonly service: HrService) {
+        super()
+    }
+    protected async execute(
+        input: ControllerInput<typeof createCompensationPreviewSchema>,
+    ) {
+        return this.service.previewCompensation({
+            organizationId: input.authUser.organizationId ?? null,
+            payAmount: input.payAmount,
+            payFrequency: input.payFrequency,
+            estimatedWorkload: input.estimatedWorkload,
+            estimatedMonthlyUnits: input.estimatedMonthlyUnits,
+        })
     }
 }
 

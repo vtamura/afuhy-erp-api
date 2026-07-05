@@ -1,6 +1,10 @@
 import { z } from 'zod'
 import { authUserSchema } from '../../../../shared/application/contracts'
 import { normalizeHrMoney } from '../../domain/money/hr-money'
+import {
+    estimateHrCompensation,
+    HrCompensationEstimationError,
+} from '../services/hr-compensation-estimator'
 
 const dateSchema = z
     .string()
@@ -14,6 +18,15 @@ const payFrequencySchema = z.enum([
     'BIWEEKLY',
     'DAILY',
     'HOURLY',
+])
+const estimatedWorkloadUnitSchema = z.enum([
+    'FIXED_MONTHLY',
+    'WEEKS_PER_MONTH',
+    'FORTNIGHTS_PER_MONTH',
+    'DAYS_PER_MONTH',
+    'DAYS_PER_WEEK',
+    'HOURS_PER_MONTH',
+    'HOURS_PER_WEEK',
 ])
 const nullableText = (max: number) =>
     z
@@ -69,6 +82,18 @@ const idWithAuth = z.object({
 const compensationFields = {
     contractType: contractTypeSchema,
     payFrequency: payFrequencySchema,
+    estimatedWorkload: z
+        .object({
+            unit: estimatedWorkloadUnitSchema,
+            amount: z.coerce
+                .number()
+                .positive(
+                    'Quantidade da carga estimada deve ser maior que zero',
+                )
+                .max(10000, 'Quantidade da carga estimada muito alta')
+                .optional(),
+        })
+        .optional(),
     estimatedMonthlyUnits: monthlyUnitsSchema.optional(),
     contractStartDate: dateSchema.optional(),
     contractEndDate: dateSchema
@@ -77,51 +102,84 @@ const compensationFields = {
         .transform((value) => value ?? null),
 }
 
-const normalizeCompensation = <
-    T extends {
-        contractType: z.infer<typeof contractTypeSchema>
-        payFrequency: z.infer<typeof payFrequencySchema>
-        estimatedMonthlyUnits?: string
-        contractEndDate: string | null
-    },
->(
-    value: T,
-    context: z.RefinementCtx,
-) => {
-    let estimatedMonthlyUnits = value.estimatedMonthlyUnits
-    if (value.payFrequency === 'MONTHLY') estimatedMonthlyUnits = '1.0000'
-    if (value.payFrequency === 'WEEKLY') estimatedMonthlyUnits ??= '4.3333'
-    if (value.payFrequency === 'BIWEEKLY') estimatedMonthlyUnits ??= '2.0000'
-    if (
-        (value.payFrequency === 'DAILY' || value.payFrequency === 'HOURLY') &&
-        !estimatedMonthlyUnits
-    ) {
-        context.addIssue({
-            code: 'custom',
-            path: ['estimatedMonthlyUnits'],
-            message:
-                'Unidades mensais estimadas sao obrigatorias para pagamento diario ou por hora',
-        })
+const normalizeCompensation =
+    <
+        T extends {
+            contractType: z.infer<typeof contractTypeSchema>
+            payFrequency: z.infer<typeof payFrequencySchema>
+            estimatedWorkload?: {
+                unit: z.infer<typeof estimatedWorkloadUnitSchema>
+                amount?: number
+            }
+            estimatedMonthlyUnits?: string
+            contractEndDate?: string | null
+            currentPayAmount?: string
+            payAmount?: string
+        },
+    >(
+        validateContractDates: boolean,
+    ) =>
+    (value: T, context: z.RefinementCtx) => {
+        let estimatedMonthlyUnits = value.estimatedMonthlyUnits
+        const payAmount = value.currentPayAmount ?? value.payAmount
+        if (payAmount) {
+            try {
+                estimatedMonthlyUnits = estimateHrCompensation({
+                    payAmount,
+                    payFrequency: value.payFrequency,
+                    estimatedWorkload: value.estimatedWorkload,
+                    estimatedMonthlyUnits: value.estimatedMonthlyUnits,
+                }).estimatedMonthlyUnits
+            } catch (error) {
+                if (error instanceof HrCompensationEstimationError) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: error.path,
+                        message: error.message,
+                    })
+                } else {
+                    throw error
+                }
+            }
+        } else if (
+            (value.payFrequency === 'DAILY' ||
+                value.payFrequency === 'HOURLY') &&
+            !estimatedMonthlyUnits
+        ) {
+            context.addIssue({
+                code: 'custom',
+                path: ['estimatedMonthlyUnits'],
+                message:
+                    'Unidades mensais estimadas sao obrigatorias para pagamento diario ou por hora',
+            })
+        }
+        if (
+            validateContractDates &&
+            value.contractType === 'TEMPORARY' &&
+            !value.contractEndDate
+        ) {
+            context.addIssue({
+                code: 'custom',
+                path: ['contractEndDate'],
+                message: 'Contrato temporario exige data final',
+            })
+        }
+        if (
+            validateContractDates &&
+            value.contractType === 'CLT' &&
+            value.contractEndDate
+        ) {
+            context.addIssue({
+                code: 'custom',
+                path: ['contractEndDate'],
+                message: 'Contrato CLT nao deve ter data final no MVP',
+            })
+        }
+        return {
+            ...value,
+            estimatedMonthlyUnits: estimatedMonthlyUnits ?? '1.0000',
+        }
     }
-    if (value.contractType === 'TEMPORARY' && !value.contractEndDate) {
-        context.addIssue({
-            code: 'custom',
-            path: ['contractEndDate'],
-            message: 'Contrato temporario exige data final',
-        })
-    }
-    if (value.contractType === 'CLT' && value.contractEndDate) {
-        context.addIssue({
-            code: 'custom',
-            path: ['contractEndDate'],
-            message: 'Contrato CLT nao deve ter data final no MVP',
-        })
-    }
-    return {
-        ...value,
-        estimatedMonthlyUnits: estimatedMonthlyUnits ?? '1.0000',
-    }
-}
 
 export const createHrCatalogSchema = catalogPayload.extend({
     authUser: authUserSchema,
@@ -162,7 +220,17 @@ export const createEmployeeSchema = z
         ...compensationFields,
         authUser: authUserSchema,
     })
-    .transform(normalizeCompensation)
+    .transform(normalizeCompensation(true))
+export const createCompensationPreviewSchema = z
+    .object({
+        authUser: authUserSchema,
+        contractType: contractTypeSchema,
+        payFrequency: payFrequencySchema,
+        payAmount: moneySchema,
+        estimatedWorkload: compensationFields.estimatedWorkload,
+        estimatedMonthlyUnits: monthlyUnitsSchema.optional(),
+    })
+    .transform(normalizeCompensation(false))
 export const updateEmployeeSchema = z
     .object({
         ...employeeEditable,
@@ -203,7 +271,7 @@ export const createSalaryChangeSchema = idWithAuth
         effectiveDate: dateSchema,
         reason: nullableText(500),
     })
-    .transform(normalizeCompensation)
+    .transform(normalizeCompensation(true))
 export const listSalaryChangesSchema = idWithAuth
 export const getHrSummarySchema = z.object({
     authUser: authUserSchema,

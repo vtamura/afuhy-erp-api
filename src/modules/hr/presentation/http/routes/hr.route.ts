@@ -1,6 +1,7 @@
 import { Router, type RequestHandler } from 'express'
 import { AUTH_PERMISSIONS } from '../../../../auth/domain/rbac/default-rbac'
 import type {
+    CreateCompensationPreviewController,
     CreateEmployeeAssignmentController,
     CreateEmployeeController,
     CreateHrCatalogController,
@@ -31,6 +32,7 @@ export function createHrRouter(params: {
     controllers: {
         departments: CatalogControllers
         positions: CatalogControllers
+        createCompensationPreview: CreateCompensationPreviewController
         createEmployee: CreateEmployeeController
         listEmployees: ListEmployeesController
         getEmployee: GetEmployeeController
@@ -93,6 +95,13 @@ export function createHrRouter(params: {
         compensationManage,
         feature,
         params.controllers.createPayrollProvision.handle,
+    )
+    router.post(
+        '/hr/compensation/preview',
+        auth,
+        compensationRead,
+        feature,
+        params.controllers.createCompensationPreview.handle,
     )
     router.post(
         '/hr/employees',
