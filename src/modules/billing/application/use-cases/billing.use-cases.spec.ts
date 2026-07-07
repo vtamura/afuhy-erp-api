@@ -15,12 +15,12 @@ describe('Billing use cases', () => {
     function makePlan(): PlanEntity {
         return {
             id: 'ccbc994b-fd5f-496e-a66a-a9829efa91c4',
-            code: 'STARTER',
-            name: 'Starter',
-            priceCents: 9990,
+            code: 'BUSINESS',
+            name: 'Afuhy ERP',
+            priceCents: 14990,
             currency: 'BRL',
             billingInterval: 'MONTH',
-            maxUsers: 5,
+            includedUsers: 5,
             createdAt: now,
             features: [
                 {
@@ -39,9 +39,19 @@ describe('Billing use cases', () => {
             plan: makePlan(),
             stripeCustomerId: null,
             stripeSubscriptionId: null,
+            stripePriceId: null,
+            stripeBaseItemId: null,
+            stripeExtraSeatItemId: null,
+            includedUsersSnapshot: 5,
+            additionalSeats: 0,
+            seatLimit: 5,
+            source: 'MANUAL',
             status: 'ACTIVE',
             startsAt: now,
             endsAt: null,
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+            cancelAtPeriodEnd: false,
             createdAt: now,
             updatedAt: now,
         }
@@ -70,8 +80,8 @@ describe('Billing use cases', () => {
 
         expect(result).toEqual([
             expect.objectContaining({
-                code: 'STARTER',
-                maxUsers: 5,
+                code: 'BUSINESS',
+                includedUsers: 5,
                 features: [
                     expect.objectContaining({ code: 'financial.basic' }),
                 ],
@@ -91,7 +101,7 @@ describe('Billing use cases', () => {
         expect(result).toMatchObject({
             organizationId,
             status: 'ACTIVE',
-            plan: { code: 'STARTER' },
+            plan: { code: 'BUSINESS' },
         })
     })
 
@@ -122,7 +132,7 @@ describe('Billing use cases', () => {
 
         const result = await useCase.execute({
             organizationId,
-            planCode: 'STARTER',
+            planCode: 'BUSINESS',
             status: 'ACTIVE',
             startsAt: now.toISOString(),
             endsAt: null,
@@ -130,11 +140,11 @@ describe('Billing use cases', () => {
 
         expect(repository.setCurrentSubscription).toHaveBeenCalledWith({
             organizationId,
-            planCode: 'STARTER',
+            planCode: 'BUSINESS',
             status: 'ACTIVE',
             startsAt: now,
             endsAt: null,
         })
-        expect(result.plan.code).toBe('STARTER')
+        expect(result.plan.code).toBe('BUSINESS')
     })
 })

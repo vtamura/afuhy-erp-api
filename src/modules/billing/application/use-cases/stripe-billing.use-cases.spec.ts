@@ -22,13 +22,13 @@ describe('Stripe billing use cases', () => {
     beforeEach(() => {
         jest.replaceProperty(
             env,
-            'STRIPE_PRICE_STARTER_MONTHLY',
-            'price_starter',
+            'STRIPE_PRICE_BUSINESS_MONTHLY',
+            'price_business',
         )
         jest.replaceProperty(
             env,
-            'STRIPE_PRICE_PROFESSIONAL_MONTHLY',
-            'price_professional',
+            'STRIPE_PRICE_EXTRA_USER_MONTHLY',
+            'price_extra_user',
         )
         jest.replaceProperty(
             env,
@@ -53,17 +53,17 @@ describe('Stripe billing use cases', () => {
             listPlans: jest.fn(),
             findPlanByCode: jest.fn().mockResolvedValue({
                 id: 'ccbc994b-fd5f-496e-a66a-a9829efa91c4',
-                code: 'STARTER',
-                name: 'Starter',
-                priceCents: 9990,
+                code: 'BUSINESS',
+                name: 'Afuhy ERP',
+                priceCents: 14990,
                 currency: 'BRL',
                 billingInterval: 'MONTH',
-                maxUsers: 5,
+                includedUsers: 5,
                 createdAt: now,
                 features: [],
             }),
             findPlanCodeByStripePriceId: jest.fn((priceId) =>
-                priceId === 'price_starter' ? 'STARTER' : null,
+                priceId === 'price_business' ? 'BUSINESS' : null,
             ),
             findCurrentSubscriptionByOrganization: jest.fn(),
             findSubscriptionByStripeSubscriptionId: jest.fn(),
@@ -88,18 +88,23 @@ describe('Stripe billing use cases', () => {
                 organizationId,
                 plan: {
                     id: 'ccbc994b-fd5f-496e-a66a-a9829efa91c4',
-                    code: 'STARTER',
-                    name: 'Starter',
-                    priceCents: 9990,
+                    code: 'BUSINESS',
+                    name: 'Afuhy ERP',
+                    priceCents: 14990,
                     currency: 'BRL',
                     billingInterval: 'MONTH',
-                    maxUsers: 5,
+                    includedUsers: 5,
                     createdAt: now,
                     features: [],
                 },
                 stripeCustomerId: 'cus_test',
                 stripeSubscriptionId: 'sub_test',
-                stripePriceId: 'price_starter',
+                stripePriceId: 'price_business',
+                stripeBaseItemId: 'si_base',
+                stripeExtraSeatItemId: null,
+                includedUsersSnapshot: 5,
+                additionalSeats: 0,
+                seatLimit: 5,
                 source: 'STRIPE',
                 status: 'ACTIVE',
                 startsAt: now,
@@ -155,7 +160,10 @@ describe('Stripe billing use cases', () => {
             retrieveSubscription: jest.fn().mockResolvedValue({
                 id: 'sub_test',
                 customerId: 'cus_test',
-                priceId: 'price_starter',
+                priceId: 'price_business',
+                baseItemId: 'si_base',
+                extraSeatItemId: null,
+                additionalSeats: 0,
                 status: 'active',
                 startsAt: now,
                 endsAt: null,
@@ -176,7 +184,7 @@ describe('Stripe billing use cases', () => {
         )
 
         const result = await useCase.execute({
-            planCode: 'STARTER',
+            planCode: 'BUSINESS',
             authUser,
         })
 
@@ -184,9 +192,9 @@ describe('Stripe billing use cases', () => {
         expect(stripeGateway.createCheckoutSession).toHaveBeenCalledWith(
             expect.objectContaining({
                 customerId: 'cus_test',
-                priceId: 'price_starter',
+                basePriceId: 'price_business',
                 organizationId,
-                planCode: 'STARTER',
+                planCode: 'BUSINESS',
             }),
         )
     })
@@ -199,7 +207,7 @@ describe('Stripe billing use cases', () => {
 
         await expect(
             useCase.execute({
-                planCode: 'STARTER',
+                planCode: 'BUSINESS',
                 authUser: { ...authUser, organizationId: null },
             }),
         ).rejects.toBeInstanceOf(ForbiddenError)
@@ -289,9 +297,25 @@ describe('Stripe billing use cases', () => {
         repository.withTransaction.mockImplementationOnce((callback) =>
             callback(transactionalRepository),
         )
+        const stripeGateway = makeStripeGateway()
+        stripeGateway.retrieveSubscription.mockResolvedValueOnce({
+            id: 'sub_test',
+            customerId: 'cus_test',
+            priceId: 'price_business',
+            baseItemId: 'si_base',
+            extraSeatItemId: 'si_extra_user',
+            additionalSeats: 2,
+            status: 'active',
+            startsAt: now,
+            endsAt: null,
+            currentPeriodStart: now,
+            currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'),
+            cancelAtPeriodEnd: false,
+            organizationId,
+        })
         const useCase = new HandleStripeWebhookUseCase(
             repository,
-            makeStripeGateway(),
+            stripeGateway,
         )
 
         await useCase.execute({
@@ -304,10 +328,13 @@ describe('Stripe billing use cases', () => {
         ).toHaveBeenCalledWith(
             expect.objectContaining({
                 organizationId,
-                planCode: 'STARTER',
+                planCode: 'BUSINESS',
                 stripeCustomerId: 'cus_test',
                 stripeSubscriptionId: 'sub_test',
-                stripePriceId: 'price_starter',
+                stripePriceId: 'price_business',
+                stripeBaseItemId: 'si_base',
+                stripeExtraSeatItemId: 'si_extra_user',
+                additionalSeats: 2,
                 status: 'ACTIVE',
             }),
         )
@@ -376,18 +403,23 @@ describe('Stripe billing use cases', () => {
                 organizationId,
                 plan: {
                     id: 'ccbc994b-fd5f-496e-a66a-a9829efa91c4',
-                    code: 'STARTER',
-                    name: 'Starter',
-                    priceCents: 9990,
+                    code: 'BUSINESS',
+                    name: 'Afuhy ERP',
+                    priceCents: 14990,
                     currency: 'BRL',
                     billingInterval: 'MONTH',
-                    maxUsers: 5,
+                    includedUsers: 5,
                     createdAt: now,
                     features: [],
                 },
                 stripeCustomerId: 'cus_test',
                 stripeSubscriptionId: 'sub_test',
-                stripePriceId: 'price_starter',
+                stripePriceId: 'price_business',
+                stripeBaseItemId: 'si_base',
+                stripeExtraSeatItemId: null,
+                includedUsersSnapshot: 5,
+                additionalSeats: 0,
+                seatLimit: 5,
                 source: 'STRIPE',
                 status: 'ACTIVE',
                 startsAt: now,
@@ -403,7 +435,10 @@ describe('Stripe billing use cases', () => {
         stripeGateway.retrieveSubscription.mockResolvedValueOnce({
             id: 'sub_test',
             customerId: 'cus_missing_profile',
-            priceId: 'price_starter',
+            priceId: 'price_business',
+            baseItemId: 'si_base',
+            extraSeatItemId: null,
+            additionalSeats: 0,
             status: 'active',
             startsAt: now,
             endsAt: null,
