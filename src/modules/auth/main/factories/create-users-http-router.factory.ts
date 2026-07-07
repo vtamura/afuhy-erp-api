@@ -18,12 +18,14 @@ export function createUsersHttpRouterFactory(
 ) {
     const { userRepository } = deps.repositories
     const { passwordHasher } = deps.security
+    const { emailNotifier } = deps.queues
     const { authenticateAccessTokenMiddleware, authorizePermissionMiddleware } =
         deps.middlewares
 
     const createUserUseCase = new CreateUserUseCase(
         userRepository,
         passwordHasher,
+        emailNotifier,
     )
     const listUsersUseCase = new ListUsersUseCase(userRepository)
     const updateUserUseCase = new UpdateUserUseCase(userRepository)

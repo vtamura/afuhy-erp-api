@@ -7,15 +7,17 @@
         "rootDir": "src",
         "strict": true,
         "esModuleInterop": true,
+        "jsx": "react-jsx",
         "forceConsistentCasingInFileNames": true,
         "skipLibCheck": true,
         "resolveJsonModule": true
     },
-    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
     "exclude": [
         "node_modules",
         "dist",
         "src/**/*.spec.ts",
+        "src/**/*.spec.tsx",
         "src/**/*.e2e-spec.ts"
     ]
 }

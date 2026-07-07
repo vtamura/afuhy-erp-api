@@ -36,6 +36,7 @@ export function createOrganizationsHttpRouterFactory(
         userRepository,
     } = deps.repositories
     const { refreshTokenHasher, secureTokenGenerator } = deps.security
+    const { emailNotifier } = deps.queues
     const {
         authenticateAccessTokenMiddleware,
         authorizePermissionMiddleware,
@@ -67,6 +68,7 @@ export function createOrganizationsHttpRouterFactory(
             userRepository,
             refreshTokenHasher,
             secureTokenGenerator,
+            emailNotifier,
         )
     const listOrganizationInvitationsUseCase =
         new ListOrganizationInvitationsUseCase(

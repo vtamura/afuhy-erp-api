@@ -7,6 +7,7 @@ import type { RoleRepository } from '../../domain/repositories/role.repository'
 import type { UserRepository } from '../../domain/repositories/user.repository'
 import type { OrganizationInvitationResponseDto } from '../dto'
 import { toOrganizationInvitationResponseDto } from '../mappers/organization-response.mapper'
+import type { AuthEmailNotifierPort } from '../ports/auth-email-notifier.port'
 import type { RefreshTokenHasherPort } from '../ports/refresh-token-hasher.port'
 
 type CreateOrganizationInvitationUseCaseInput = {
@@ -31,6 +32,7 @@ export class CreateOrganizationInvitationUseCase {
         private readonly userRepository: UserRepository,
         private readonly tokenHasher: RefreshTokenHasherPort,
         private readonly tokenGenerator: TokenGenerator,
+        private readonly emailNotifier?: AuthEmailNotifierPort,
     ) {}
 
     async execute(
@@ -87,6 +89,13 @@ export class CreateOrganizationInvitationUseCase {
                   roleIds: roles.map((role) => role.id),
               })
 
+        await this.enqueueOrganizationInvitationEmail({
+            email: invitation.email,
+            organizationName: organization.name,
+            invitationToken,
+            expiresAt,
+        })
+
         return toOrganizationInvitationResponseDto(
             invitation,
             env.NODE_ENV === 'development' ? invitationToken : undefined,
@@ -105,5 +114,18 @@ export class CreateOrganizationInvitationUseCase {
         }
 
         return roles
+    }
+
+    private async enqueueOrganizationInvitationEmail(input: {
+        email: string
+        organizationName: string
+        invitationToken: string
+        expiresAt: Date
+    }): Promise<void> {
+        try {
+            await this.emailNotifier?.notifyOrganizationInvitation(input)
+        } catch {
+            // Invitation creation must not depend on email infrastructure.
+        }
     }
 }

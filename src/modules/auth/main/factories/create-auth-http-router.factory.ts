@@ -48,6 +48,7 @@ export function createAuthHttpRouterFactory(
         secureTokenGenerator,
         tokenService,
     } = deps.security
+    const { emailNotifier } = deps.queues
     const { authenticateAccessTokenMiddleware } = deps.middlewares
 
     const listSessionsUseCase = new ListSessionsUseCase(sessionRepository)
@@ -65,6 +66,7 @@ export function createAuthHttpRouterFactory(
         passwordResetTokenRepository,
         refreshTokenHasher,
         secureTokenGenerator,
+        emailNotifier,
     )
     const resetPasswordUseCase = new ResetPasswordUseCase(
         userRepository,

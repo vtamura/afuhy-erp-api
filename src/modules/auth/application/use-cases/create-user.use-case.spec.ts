@@ -1,6 +1,7 @@
 import { ConflictError } from '../../../../shared/domain/errors'
 import { UserEntity } from '../../domain/entities/user.entity'
 import type { UserRepository } from '../../domain/repositories/user.repository'
+import type { AuthEmailNotifierPort } from '../ports/auth-email-notifier.port'
 import type { PasswordHasherPort } from '../ports/password-hasher.port'
 import { CreateUserUseCase } from './create-user.use-case'
 
@@ -39,9 +40,24 @@ describe('CreateUserUseCase', () => {
             hash: jest.fn().mockResolvedValue('hashed-password'),
             compare: jest.fn(),
         }
-        const useCase = new CreateUserUseCase(userRepository, passwordHasher)
+        const emailNotifier: AuthEmailNotifierPort = {
+            notifyUserCreated: jest.fn(),
+            notifyPasswordReset: jest.fn(),
+            notifyOrganizationInvitation: jest.fn(),
+        }
+        const useCase = new CreateUserUseCase(
+            userRepository,
+            passwordHasher,
+            emailNotifier,
+        )
 
-        return { createdUser, passwordHasher, useCase, userRepository }
+        return {
+            createdUser,
+            emailNotifier,
+            passwordHasher,
+            useCase,
+            userRepository,
+        }
     }
 
     it('creates a user with a hashed password', async () => {
@@ -61,6 +77,38 @@ describe('CreateUserUseCase', () => {
         })
         expect(result).toMatchObject({
             id: 'a044f2e8-43f3-4e6f-8d94-e0d6d5ec9819',
+            email: 'maria@afuhy.local',
+        })
+    })
+
+    it('enqueues a user created email after creating the user', async () => {
+        const { emailNotifier, useCase } = makeSut()
+
+        await useCase.execute({
+            name: 'Maria Silva',
+            email: 'maria@afuhy.local',
+            password: 'Password123',
+        })
+
+        expect(emailNotifier.notifyUserCreated).toHaveBeenCalledWith({
+            name: 'Maria Silva',
+            email: 'maria@afuhy.local',
+        })
+    })
+
+    it('does not block user creation when email enqueue fails', async () => {
+        const { emailNotifier, useCase } = makeSut()
+        jest.spyOn(emailNotifier, 'notifyUserCreated').mockRejectedValue(
+            new Error('redis unavailable'),
+        )
+
+        await expect(
+            useCase.execute({
+                name: 'Maria Silva',
+                email: 'maria@afuhy.local',
+                password: 'Password123',
+            }),
+        ).resolves.toMatchObject({
             email: 'maria@afuhy.local',
         })
     })

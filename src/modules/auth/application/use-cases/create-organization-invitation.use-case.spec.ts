@@ -11,6 +11,7 @@ import type {
     RoleRepository,
 } from '../../domain/repositories/role.repository'
 import type { UserRepository } from '../../domain/repositories/user.repository'
+import type { AuthEmailNotifierPort } from '../ports/auth-email-notifier.port'
 import type { RefreshTokenHasherPort } from '../ports/refresh-token-hasher.port'
 import { CreateOrganizationInvitationUseCase } from './create-organization-invitation.use-case'
 
@@ -150,6 +151,11 @@ describe('CreateOrganizationInvitationUseCase', () => {
         const tokenGenerator = {
             generate: jest.fn().mockReturnValue('raw-token'),
         }
+        const emailNotifier: AuthEmailNotifierPort = {
+            notifyUserCreated: jest.fn(),
+            notifyPasswordReset: jest.fn(),
+            notifyOrganizationInvitation: jest.fn(),
+        }
         const useCase = new CreateOrganizationInvitationUseCase(
             organizationRepository,
             organizationInvitationRepository,
@@ -158,12 +164,14 @@ describe('CreateOrganizationInvitationUseCase', () => {
             userRepository,
             tokenHasher,
             tokenGenerator,
+            emailNotifier,
         )
 
         return {
             organizationInvitationRepository,
             organizationUserRepository,
             roleRepository,
+            emailNotifier,
             tokenHasher,
             tokenGenerator,
             useCase,
@@ -192,6 +200,45 @@ describe('CreateOrganizationInvitationUseCase', () => {
             }),
         )
         expect(result.invitationToken).toBeUndefined()
+    })
+
+    it('enqueues an organization invitation email after creating it', async () => {
+        const { emailNotifier, useCase } = makeSut()
+
+        await useCase.execute({
+            organizationId,
+            invitedByUserId: '7fe6d055-9ee0-4cc3-9ef9-7256994315d7',
+            email: 'maria@afuhy.local',
+            roleCodes: ['VIEWER'],
+        })
+
+        expect(emailNotifier.notifyOrganizationInvitation).toHaveBeenCalledWith(
+            {
+                email: 'maria@afuhy.local',
+                organizationName: 'Afuhy Tecnologia',
+                invitationToken: 'raw-token',
+                expiresAt: expect.any(Date),
+            },
+        )
+    })
+
+    it('does not block invitation creation when email enqueue fails', async () => {
+        const { emailNotifier, useCase } = makeSut()
+        jest.spyOn(
+            emailNotifier,
+            'notifyOrganizationInvitation',
+        ).mockRejectedValue(new Error('redis unavailable'))
+
+        await expect(
+            useCase.execute({
+                organizationId,
+                invitedByUserId: '7fe6d055-9ee0-4cc3-9ef9-7256994315d7',
+                email: 'maria@afuhy.local',
+                roleCodes: ['VIEWER'],
+            }),
+        ).resolves.toMatchObject({
+            email: 'maria@afuhy.local',
+        })
     })
 
     it('rotates token and roles when invitation is already pending', async () => {

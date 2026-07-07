@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import type { AuthEmailNotifierPort } from '../../application/ports/auth-email-notifier.port'
 import type { PasswordHasherPort } from '../../application/ports/password-hasher.port'
 import type { RefreshTokenHasherPort } from '../../application/ports/refresh-token-hasher.port'
 import type { TokenService } from '../../application/ports/token.service'
@@ -29,6 +30,9 @@ export type AuthHttpRouterFactoryDependencies = {
         refreshTokenHasher: RefreshTokenHasherPort
         secureTokenGenerator: TokenGenerator
         tokenService: TokenService
+    }
+    queues: {
+        emailNotifier: AuthEmailNotifierPort
     }
     middlewares: {
         authenticateAccessTokenMiddleware: RequestHandler

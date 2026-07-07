@@ -2,6 +2,7 @@ import { ConflictError } from '../../../../shared/domain/errors'
 import type { UserRepository } from '../../domain/repositories/user.repository'
 import type { UserResponseDto } from '../dto'
 import { toUserResponseDto } from '../mappers/user-response.mapper'
+import type { AuthEmailNotifierPort } from '../ports/auth-email-notifier.port'
 import type { PasswordHasherPort } from '../ports/password-hasher.port'
 
 type CreateUserUseCaseInput = {
@@ -14,6 +15,7 @@ export class CreateUserUseCase {
     constructor(
         private readonly userRepository: UserRepository,
         private readonly passwordHasher: PasswordHasherPort,
+        private readonly emailNotifier?: AuthEmailNotifierPort,
     ) {}
 
     async execute(input: CreateUserUseCaseInput): Promise<UserResponseDto> {
@@ -30,6 +32,22 @@ export class CreateUserUseCase {
             passwordHash,
         })
 
+        await this.enqueueUserCreatedEmail({
+            name: user.name,
+            email: user.email,
+        })
+
         return toUserResponseDto(user)
+    }
+
+    private async enqueueUserCreatedEmail(input: {
+        name: string
+        email: string
+    }): Promise<void> {
+        try {
+            await this.emailNotifier?.notifyUserCreated(input)
+        } catch {
+            // Email is a non-blocking side effect for user creation.
+        }
     }
 }

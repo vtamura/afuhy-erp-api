@@ -7,6 +7,8 @@ import { PostgresPasswordResetTokenRepository } from './infrastructure/repositor
 import { PostgresRoleRepository } from './infrastructure/repositories/postgres-role.repository'
 import { PostgresSessionRepository } from './infrastructure/repositories/postgres-session.repository'
 import { PostgresUserRepository } from './infrastructure/repositories/postgres-user.repository'
+import { createEmailQueue } from '../../shared/infrastructure/email/create-email-queue'
+import { AuthEmailNotifier } from './infrastructure/email/auth-email.notifier'
 import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-hasher'
 import { JwtTokenService } from './infrastructure/security/jwt-token.service'
 import { SecureTokenGenerator } from './infrastructure/security/secure-token-generator'
@@ -71,6 +73,7 @@ function createAuthHttpRouterFactoryDependencies(
     const refreshTokenHasher = new Sha256RefreshTokenHasher()
     const secureTokenGenerator = new SecureTokenGenerator()
     const tokenService = new JwtTokenService()
+    const emailNotifier = new AuthEmailNotifier(createEmailQueue())
     const authenticateAccessTokenMiddleware =
         createAuthenticateAccessTokenMiddleware(
             userRepository,
@@ -97,6 +100,9 @@ function createAuthHttpRouterFactoryDependencies(
             refreshTokenHasher,
             secureTokenGenerator,
             tokenService,
+        },
+        queues: {
+            emailNotifier,
         },
         middlewares: {
             authenticateAccessTokenMiddleware,

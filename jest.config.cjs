@@ -5,8 +5,10 @@ const config = {
     clearMocks: true,
     collectCoverageFrom: [
         'src/**/*.ts',
+        'src/**/*.tsx',
         '!src/**/*.d.ts',
         '!src/**/*.spec.ts',
+        '!src/**/*.spec.tsx',
         '!src/**/*.e2e-spec.ts',
         '!src/**/index.ts',
         '!src/**/presentation/http/controllers/**/*.ts',
@@ -15,7 +17,7 @@ const config = {
         '!src/main/bootstrap/**/*.ts',
     ],
     coverageDirectory: 'coverage',
-    moduleFileExtensions: ['ts', 'js', 'json'],
+    moduleFileExtensions: ['ts', 'tsx', 'js', 'json'],
     preset: 'ts-jest',
     testEnvironment: 'node',
     testMatch: ['**/*.spec.ts'],
@@ -26,7 +28,7 @@ const config = {
         '\\.e2e-spec\\.ts$',
     ],
     transform: {
-        '^.+\\.ts$': [
+        '^.+\\.tsx?$': [
             'ts-jest',
             {
                 tsconfig: 'tsconfig.spec.json',

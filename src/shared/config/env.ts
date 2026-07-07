@@ -61,6 +61,18 @@ const envSchema = z.object({
     STRIPE_SUCCESS_URL: z.string().url().default('http://localhost:3000'),
     STRIPE_CANCEL_URL: z.string().url().default('http://localhost:3000'),
     STRIPE_PORTAL_RETURN_URL: z.string().url().default('http://localhost:3000'),
+    EMAIL_QUEUE_DRIVER: z.enum(['log', 'bullmq']).default('log'),
+    REDIS_URL: z.string().default('redis://localhost:6379'),
+    EMAIL_QUEUE_NAME: z.string().default('emails'),
+    EMAIL_WORKER_CONCURRENCY: z.coerce.number().int().positive().default(5),
+    EMAIL_JOB_ATTEMPTS: z.coerce.number().int().positive().default(5),
+    EMAIL_JOB_BACKOFF_MS: z.coerce.number().int().nonnegative().default(30000),
+    RESEND_API_KEY: z.string().default(''),
+    EMAIL_FROM_NAME: z.string().default('Afuhy'),
+    EMAIL_FROM_ADDRESS: z.string().email().default('no-reply@afuhy.com.br'),
+    APP_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
+    PASSWORD_RESET_PATH: z.string().default('/reset-password'),
+    INVITATION_ACCEPT_PATH: z.string().default('/invitations/accept'),
 })
 
 export type Env = z.infer<typeof envSchema>
