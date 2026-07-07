@@ -1,9 +1,6 @@
 'use strict'
 
-const plans = [
-    ['STARTER', 'Starter', 7990, 'BRL', 'MONTH', 5],
-    ['PROFESSIONAL', 'Professional', 19990, 'BRL', 'MONTH', 30],
-]
+const plans = [['BUSINESS', 'Afuhy ERP', 14990, 'BRL', 'MONTH', 5]]
 
 const features = [
     ['registry.basic', 'Cadastros gerais basicos'],
@@ -24,7 +21,7 @@ const features = [
     ['integrations.external', 'Integracoes externas'],
 ]
 
-const starterFeatures = [
+const businessFeatures = [
     'registry.basic',
     'financial.basic',
     'hr.basic',
@@ -33,10 +30,6 @@ const starterFeatures = [
     'tasks.basic',
     'reports.basic',
     'users.basic',
-]
-
-const professionalFeatures = [
-    ...starterFeatures,
     'permissions.advanced',
     'audit.logs',
     'reports.advanced',
@@ -67,17 +60,14 @@ module.exports = {
     async up(queryInterface) {
         const planValues = plans
             .map(
-                ([code, name, priceCents, currency, interval, maxUsers]) =>
-                    `('${code}', '${name}', ${priceCents}, '${currency}', '${interval}', ${maxUsers})`,
+                ([code, name, priceCents, currency, interval, includedUsers]) =>
+                    `('${code}', '${name}', ${priceCents}, '${currency}', '${interval}', ${includedUsers})`,
             )
             .join(',\n')
         const featureValues = toTextValues(features)
         const permissionValues = toTextValues(billingPermissions)
-        const starterFeatureValues = starterFeatures
-            .map((featureCode) => `('STARTER', '${featureCode}')`)
-            .join(',\n')
-        const professionalFeatureValues = professionalFeatures
-            .map((featureCode) => `('PROFESSIONAL', '${featureCode}')`)
+        const businessFeatureValues = businessFeatures
+            .map((featureCode) => `('BUSINESS', '${featureCode}')`)
             .join(',\n')
 
         await queryInterface.sequelize.query(`
@@ -87,7 +77,7 @@ module.exports = {
                 price_cents,
                 currency,
                 billing_interval,
-                max_users
+                included_users
             )
             VALUES
                 ${planValues}
@@ -96,7 +86,7 @@ module.exports = {
                     price_cents = EXCLUDED.price_cents,
                     currency = EXCLUDED.currency,
                     billing_interval = EXCLUDED.billing_interval,
-                    max_users = EXCLUDED.max_users;
+                    included_users = EXCLUDED.included_users;
 
             INSERT INTO features (code, description)
             VALUES
@@ -108,8 +98,7 @@ module.exports = {
             SELECT plans.id, features.id
             FROM (
                 VALUES
-                    ${starterFeatureValues},
-                    ${professionalFeatureValues}
+                    ${businessFeatureValues}
             ) AS plan_feature_defaults(plan_code, feature_code)
             INNER JOIN plans
                 ON plans.code::text = plan_feature_defaults.plan_code
@@ -145,18 +134,21 @@ module.exports = {
             DELETE FROM permissions
             WHERE code IN ('settings.billing.read', 'settings.billing.manage');
 
+            DELETE FROM subscriptions
+            USING plans
+            WHERE subscriptions.plan_id = plans.id
+                AND plans.code::text IN ('BUSINESS', 'STARTER', 'PROFESSIONAL');
+
             DELETE FROM plan_features
-            USING plans, features
-            WHERE plan_features.plan_id = plans.id
-                AND plan_features.feature_id = features.id
-                AND plans.code::text IN ('STARTER', 'PROFESSIONAL')
+            USING features
+            WHERE plan_features.feature_id = features.id
                 AND features.code IN (${features.map(([code]) => `'${code}'`).join(', ')});
 
             DELETE FROM features
             WHERE code IN (${features.map(([code]) => `'${code}'`).join(', ')});
 
             DELETE FROM plans
-            WHERE code::text IN ('STARTER', 'PROFESSIONAL');
+            WHERE code::text IN ('BUSINESS', 'STARTER', 'PROFESSIONAL');
         `)
     },
 }

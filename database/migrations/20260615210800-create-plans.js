@@ -11,11 +11,11 @@ module.exports = {
                 price_cents INTEGER NOT NULL,
                 currency CHAR(3) NOT NULL DEFAULT 'BRL',
                 billing_interval VARCHAR(20) NOT NULL DEFAULT 'MONTH',
-                max_users INTEGER NOT NULL,
+                included_users INTEGER NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 CONSTRAINT plans_code_unique UNIQUE (code),
                 CONSTRAINT plans_price_cents_non_negative CHECK (price_cents >= 0),
-                CONSTRAINT plans_max_users_positive CHECK (max_users > 0),
+                CONSTRAINT plans_included_users_positive CHECK (included_users > 0),
                 CONSTRAINT plans_billing_interval_check CHECK (billing_interval IN ('MONTH', 'YEAR'))
             );
         `)
@@ -23,7 +23,7 @@ module.exports = {
 
     async down(queryInterface) {
         await queryInterface.sequelize.query(`
-            DROP TABLE IF EXISTS plans;
+            DROP TABLE IF EXISTS plans CASCADE;
         `)
     },
 }

@@ -43,7 +43,7 @@ module.exports = {
 
             DO $$
             BEGIN
-                CREATE TYPE plan_type AS ENUM ('STARTER', 'PROFESSIONAL');
+                CREATE TYPE plan_type AS ENUM ('BUSINESS');
             EXCEPTION
                 WHEN duplicate_object THEN NULL;
             END $$;
