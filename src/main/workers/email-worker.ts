@@ -10,6 +10,14 @@ import type { EmailJobData } from '../../shared/infrastructure/email/email-job'
 
 const logger = createLogger({ component: 'email.worker' })
 
+if (env.EMAIL_QUEUE_DRIVER !== 'bullmq') {
+    logger.warn('email.worker.disabled', {
+        emailQueueDriver: env.EMAIL_QUEUE_DRIVER,
+        reason: 'Worker requires EMAIL_QUEUE_DRIVER=bullmq',
+    })
+    process.exit(0)
+}
+
 const worker = new Worker<EmailJobData, void, string>(
     env.EMAIL_QUEUE_NAME,
     createEmailJobProcessor(undefined, logger),
@@ -31,6 +39,13 @@ worker.on('failed', (job, error) => {
         jobId: job?.id,
         jobName: job?.name,
         attemptsMade: job?.attemptsMade,
+        error: serializeError(error),
+    })
+})
+
+worker.on('error', (error) => {
+    logger.error('email.worker.redis_error', {
+        redisUrl: env.REDIS_URL,
         error: serializeError(error),
     })
 })

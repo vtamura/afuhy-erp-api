@@ -1,10 +1,12 @@
 const addMock = jest.fn()
 const closeMock = jest.fn()
+const onMock = jest.fn()
 
 jest.mock('bullmq', () => ({
     Queue: jest.fn().mockImplementation(() => ({
         add: addMock,
         close: closeMock,
+        on: onMock,
     })),
 }))
 
@@ -15,6 +17,7 @@ describe('BullMqEmailQueue', () => {
     beforeEach(() => {
         addMock.mockReset().mockResolvedValue(undefined)
         closeMock.mockReset().mockResolvedValue(undefined)
+        onMock.mockReset()
         jest.mocked(Queue).mockClear()
     })
 
@@ -35,6 +38,7 @@ describe('BullMqEmailQueue', () => {
                 },
             }),
         )
+        expect(onMock).toHaveBeenCalledWith('error', expect.any(Function))
     })
 
     it('enqueues generic email jobs with idempotency keys', async () => {

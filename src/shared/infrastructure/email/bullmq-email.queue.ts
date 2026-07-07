@@ -21,6 +21,13 @@ export class BullMqEmailQueue implements EmailQueuePort {
                 defaultJobOptions: this.getDefaultJobOptions(),
             },
         )
+        this.queue.on('error', (error) => {
+            this.logger.error('email.queue.redis_error', {
+                queueName: env.EMAIL_QUEUE_NAME,
+                redisUrl: env.REDIS_URL,
+                error: serializeError(error),
+            })
+        })
     }
 
     async enqueue(input: EmailJobInput): Promise<void> {
