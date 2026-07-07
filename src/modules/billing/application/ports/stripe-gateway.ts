@@ -1,6 +1,6 @@
 export type StripeCheckoutSessionInput = {
     customerId: string
-    priceId: string
+    basePriceId: string
     successUrl: string
     cancelUrl: string
     organizationId: string
@@ -22,6 +22,9 @@ export type StripeSubscriptionSnapshot = {
     id: string
     customerId: string
     priceId: string
+    baseItemId: string | null
+    extraSeatItemId: string | null
+    additionalSeats: number
     status: string
     startsAt: Date
     endsAt: Date | null

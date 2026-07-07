@@ -39,7 +39,7 @@ export function createEnforceUserLimitMiddleware(
                 const usedSeats =
                     await billingRepository.countUsedSeats(organizationId)
 
-                if (usedSeats >= subscription.plan.maxUsers) {
+                if (usedSeats >= subscription.seatLimit) {
                     throw new ForbiddenError(
                         'Limite de usuarios do plano atingido',
                     )

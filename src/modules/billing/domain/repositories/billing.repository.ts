@@ -19,6 +19,9 @@ export type SetOrganizationSubscriptionInput = {
     stripeCustomerId?: string | null
     stripeSubscriptionId?: string | null
     stripePriceId?: string | null
+    stripeBaseItemId?: string | null
+    stripeExtraSeatItemId?: string | null
+    additionalSeats?: number
     currentPeriodStart?: Date | null
     currentPeriodEnd?: Date | null
     cancelAtPeriodEnd?: boolean
@@ -45,6 +48,9 @@ export type SyncStripeSubscriptionInput = {
     stripeCustomerId: string
     stripeSubscriptionId: string
     stripePriceId: string
+    stripeBaseItemId: string | null
+    stripeExtraSeatItemId: string | null
+    additionalSeats: number
     status: SubscriptionStatus
     startsAt: Date
     endsAt: Date | null

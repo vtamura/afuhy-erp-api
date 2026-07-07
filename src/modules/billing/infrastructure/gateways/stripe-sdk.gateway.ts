@@ -46,7 +46,7 @@ export class StripeSdkGateway implements StripeGateway {
             cancel_url: input.cancelUrl,
             line_items: [
                 {
-                    price: input.priceId,
+                    price: input.basePriceId,
                     quantity: 1,
                 },
             ],
@@ -114,7 +114,16 @@ export class StripeSdkGateway implements StripeGateway {
     private toSubscriptionSnapshot(
         subscription: Stripe.Subscription,
     ): StripeSubscriptionSnapshot {
-        const item = subscription.items.data[0]
+        const baseItem = this.findSubscriptionItemByPriceId(
+            subscription,
+            env.STRIPE_PRICE_BUSINESS_MONTHLY,
+        )
+        const extraSeatItem = this.findSubscriptionItemByPriceId(
+            subscription,
+            env.STRIPE_PRICE_EXTRA_USER_MONTHLY,
+        )
+        const fallbackItem = subscription.items.data[0]
+        const basePriceId = baseItem?.price.id ?? fallbackItem?.price.id ?? ''
         const metadata = subscription.metadata ?? {}
 
         return {
@@ -123,20 +132,39 @@ export class StripeSdkGateway implements StripeGateway {
                 typeof subscription.customer === 'string'
                     ? subscription.customer
                     : subscription.customer.id,
-            priceId: item?.price.id ?? '',
+            priceId: basePriceId,
+            baseItemId: baseItem?.id ?? fallbackItem?.id ?? null,
+            extraSeatItemId: extraSeatItem?.id ?? null,
+            additionalSeats: extraSeatItem?.quantity ?? 0,
             status: subscription.status,
             startsAt: this.fromUnix(subscription.start_date) ?? new Date(),
             endsAt: this.fromUnix(subscription.ended_at),
             currentPeriodStart: this.fromUnix(
-                item?.current_period_start ?? null,
+                (baseItem ?? fallbackItem)?.current_period_start ?? null,
             ),
-            currentPeriodEnd: this.fromUnix(item?.current_period_end ?? null),
+            currentPeriodEnd: this.fromUnix(
+                (baseItem ?? fallbackItem)?.current_period_end ?? null,
+            ),
             cancelAtPeriodEnd: subscription.cancel_at_period_end,
             organizationId:
                 typeof metadata.organizationId === 'string'
                     ? metadata.organizationId
                     : null,
         }
+    }
+
+    private findSubscriptionItemByPriceId(
+        subscription: Stripe.Subscription,
+        priceId: string,
+    ): Stripe.SubscriptionItem | null {
+        if (!priceId) {
+            return null
+        }
+
+        return (
+            subscription.items.data.find((item) => item.price.id === priceId) ??
+            null
+        )
     }
 
     private fromUnix(value: number | null | undefined): Date | null {

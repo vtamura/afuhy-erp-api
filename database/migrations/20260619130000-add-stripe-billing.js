@@ -18,10 +18,18 @@ module.exports = {
 
             ALTER TABLE subscriptions
                 ADD COLUMN stripe_price_id VARCHAR(255),
+                ADD COLUMN stripe_base_item_id VARCHAR(255),
+                ADD COLUMN stripe_extra_seat_item_id VARCHAR(255),
+                ADD COLUMN included_users_snapshot INTEGER,
+                ADD COLUMN additional_seats INTEGER NOT NULL DEFAULT 0,
                 ADD COLUMN source VARCHAR(20) NOT NULL DEFAULT 'MANUAL',
                 ADD COLUMN current_period_start TIMESTAMPTZ,
                 ADD COLUMN current_period_end TIMESTAMPTZ,
                 ADD COLUMN cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+                ADD CONSTRAINT subscriptions_included_users_snapshot_positive CHECK (
+                    included_users_snapshot IS NULL OR included_users_snapshot > 0
+                ),
+                ADD CONSTRAINT subscriptions_additional_seats_non_negative CHECK (additional_seats >= 0),
                 ADD CONSTRAINT subscriptions_source_check CHECK (source IN ('MANUAL', 'STRIPE'));
 
             CREATE UNIQUE INDEX subscriptions_stripe_subscription_unique
@@ -61,10 +69,16 @@ module.exports = {
 
             ALTER TABLE subscriptions
                 DROP CONSTRAINT IF EXISTS subscriptions_source_check,
+                DROP CONSTRAINT IF EXISTS subscriptions_additional_seats_non_negative,
+                DROP CONSTRAINT IF EXISTS subscriptions_included_users_snapshot_positive,
                 DROP COLUMN IF EXISTS cancel_at_period_end,
                 DROP COLUMN IF EXISTS current_period_end,
                 DROP COLUMN IF EXISTS current_period_start,
                 DROP COLUMN IF EXISTS source,
+                DROP COLUMN IF EXISTS additional_seats,
+                DROP COLUMN IF EXISTS included_users_snapshot,
+                DROP COLUMN IF EXISTS stripe_extra_seat_item_id,
+                DROP COLUMN IF EXISTS stripe_base_item_id,
                 DROP COLUMN IF EXISTS stripe_price_id;
 
             DROP TABLE IF EXISTS organization_billing_profiles;

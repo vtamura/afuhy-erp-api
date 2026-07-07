@@ -3,7 +3,7 @@ import { authUserSchema } from '../../../../shared/application/contracts'
 
 export const setOrganizationSubscriptionSchema = z.object({
     id: z.string().uuid(),
-    planCode: z.enum(['STARTER', 'PROFESSIONAL']),
+    planCode: z.enum(['BUSINESS']),
     status: z.enum(['TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED']),
     startsAt: z.string().datetime().optional(),
     endsAt: z.string().datetime().nullable().optional(),

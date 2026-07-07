@@ -11,7 +11,7 @@ export type PlanResponseDto = {
     priceCents: number
     currency: string
     billingInterval: string
-    maxUsers: number
+    includedUsers: number
     createdAt: string
     features: FeatureResponseDto[]
 }
@@ -27,6 +27,9 @@ export type SubscriptionResponseDto = {
     currentPeriodStart: string | null
     currentPeriodEnd: string | null
     cancelAtPeriodEnd: boolean
+    includedUsersSnapshot: number
+    additionalSeats: number
+    seatLimit: number
     createdAt: string
     updatedAt: string
 }

@@ -1,4 +1,4 @@
-export type PlanCode = 'STARTER' | 'PROFESSIONAL'
+export type PlanCode = 'BUSINESS'
 export type SubscriptionStatus =
     | 'TRIALING'
     | 'ACTIVE'
@@ -23,7 +23,7 @@ export type PlanEntity = {
     priceCents: number
     currency: string
     billingInterval: string
-    maxUsers: number
+    includedUsers: number
     createdAt: Date
     features: FeatureEntity[]
 }
@@ -35,6 +35,11 @@ export type SubscriptionEntity = {
     stripeCustomerId: string | null
     stripeSubscriptionId: string | null
     stripePriceId: string | null
+    stripeBaseItemId: string | null
+    stripeExtraSeatItemId: string | null
+    includedUsersSnapshot: number
+    additionalSeats: number
+    seatLimit: number
     source: SubscriptionSource
     status: SubscriptionStatus
     startsAt: Date

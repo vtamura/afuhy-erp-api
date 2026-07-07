@@ -27,7 +27,7 @@ export function toPlanResponseDto(plan: PlanEntity): PlanResponseDto {
         priceCents: plan.priceCents,
         currency: plan.currency,
         billingInterval: plan.billingInterval,
-        maxUsers: plan.maxUsers,
+        includedUsers: plan.includedUsers,
         createdAt: plan.createdAt.toISOString(),
         features: plan.features.map(toFeatureResponseDto),
     }
@@ -48,6 +48,9 @@ export function toSubscriptionResponseDto(
             subscription.currentPeriodStart?.toISOString() ?? null,
         currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
         cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+        includedUsersSnapshot: subscription.includedUsersSnapshot,
+        additionalSeats: subscription.additionalSeats,
+        seatLimit: subscription.seatLimit,
         createdAt: subscription.createdAt.toISOString(),
         updatedAt: subscription.updatedAt.toISOString(),
     }

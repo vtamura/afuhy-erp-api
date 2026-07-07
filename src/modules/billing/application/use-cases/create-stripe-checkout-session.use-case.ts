@@ -47,7 +47,7 @@ export class CreateStripeCheckoutSessionUseCase {
         const profile = await this.ensureBillingProfile(organizationId)
         const url = await this.stripeGateway.createCheckoutSession({
             customerId: profile.stripeCustomerId,
-            priceId,
+            basePriceId: priceId,
             successUrl: env.STRIPE_SUCCESS_URL,
             cancelUrl: env.STRIPE_CANCEL_URL,
             organizationId,
@@ -76,10 +76,7 @@ export class CreateStripeCheckoutSessionUseCase {
     }
 
     private getPriceId(planCode: PlanCode): string {
-        const priceId =
-            planCode === 'STARTER'
-                ? env.STRIPE_PRICE_STARTER_MONTHLY
-                : env.STRIPE_PRICE_PROFESSIONAL_MONTHLY
+        const priceId = env.STRIPE_PRICE_BUSINESS_MONTHLY
 
         if (!priceId) {
             throw new BadRequestError(

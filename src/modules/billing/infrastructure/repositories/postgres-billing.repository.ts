@@ -27,7 +27,7 @@ type PlanRow = {
     price_cents: number
     currency: string
     billing_interval: string
-    max_users: number
+    included_users: number
     created_at: Date
     features: FeatureEntity[] | null
 }
@@ -38,6 +38,10 @@ type SubscriptionRow = {
     stripe_customer_id: string | null
     stripe_subscription_id: string | null
     stripe_price_id: string | null
+    stripe_base_item_id: string | null
+    stripe_extra_seat_item_id: string | null
+    included_users_snapshot: number | null
+    additional_seats: number
     source: SubscriptionSource
     status: SubscriptionStatus
     starts_at: Date
@@ -53,7 +57,7 @@ type SubscriptionRow = {
     plan_price_cents: number
     plan_currency: string
     plan_billing_interval: string
-    plan_max_users: number
+    plan_included_users: number
     plan_created_at: Date
     features: FeatureEntity[] | null
 }
@@ -95,7 +99,7 @@ export class PostgresBillingRepository implements BillingRepository {
                     plans.price_cents,
                     plans.currency,
                     plans.billing_interval,
-                    plans.max_users,
+                    plans.included_users,
                     plans.created_at,
                     COALESCE(
                         JSONB_AGG(
@@ -131,9 +135,12 @@ export class PostgresBillingRepository implements BillingRepository {
     }
 
     findPlanCodeByStripePriceId(stripePriceId: string): PlanCode | null {
+        if (!env.STRIPE_PRICE_BUSINESS_MONTHLY) {
+            return null
+        }
+
         const priceMap: Record<string, PlanCode> = {
-            [env.STRIPE_PRICE_STARTER_MONTHLY]: 'STARTER',
-            [env.STRIPE_PRICE_PROFESSIONAL_MONTHLY]: 'PROFESSIONAL',
+            [env.STRIPE_PRICE_BUSINESS_MONTHLY]: 'BUSINESS',
         }
 
         return priceMap[stripePriceId] ?? null
@@ -343,6 +350,10 @@ export class PostgresBillingRepository implements BillingRepository {
                         stripe_customer_id,
                         stripe_subscription_id,
                         stripe_price_id,
+                        stripe_base_item_id,
+                        stripe_extra_seat_item_id,
+                        included_users_snapshot,
+                        additional_seats,
                         source,
                         status,
                         starts_at,
@@ -357,6 +368,10 @@ export class PostgresBillingRepository implements BillingRepository {
                         :stripeCustomerId,
                         :stripeSubscriptionId,
                         :stripePriceId,
+                        :stripeBaseItemId,
+                        :stripeExtraSeatItemId,
+                        :includedUsersSnapshot,
+                        :additionalSeats,
                         :source,
                         :status,
                         :startsAt,
@@ -373,6 +388,10 @@ export class PostgresBillingRepository implements BillingRepository {
                     stripeCustomerId: input.stripeCustomerId ?? null,
                     stripeSubscriptionId: input.stripeSubscriptionId ?? null,
                     stripePriceId: input.stripePriceId ?? null,
+                    stripeBaseItemId: input.stripeBaseItemId ?? null,
+                    stripeExtraSeatItemId: input.stripeExtraSeatItemId ?? null,
+                    includedUsersSnapshot: plan.includedUsers,
+                    additionalSeats: input.additionalSeats ?? 0,
                     source: input.source ?? 'MANUAL',
                     status: input.status,
                     startsAt: input.startsAt,
@@ -437,6 +456,10 @@ export class PostgresBillingRepository implements BillingRepository {
                         stripe_customer_id,
                         stripe_subscription_id,
                         stripe_price_id,
+                        stripe_base_item_id,
+                        stripe_extra_seat_item_id,
+                        included_users_snapshot,
+                        additional_seats,
                         source,
                         status,
                         starts_at,
@@ -451,6 +474,10 @@ export class PostgresBillingRepository implements BillingRepository {
                         :stripeCustomerId,
                         :stripeSubscriptionId,
                         :stripePriceId,
+                        :stripeBaseItemId,
+                        :stripeExtraSeatItemId,
+                        :includedUsersSnapshot,
+                        :additionalSeats,
                         'STRIPE',
                         :status,
                         :startsAt,
@@ -466,6 +493,13 @@ export class PostgresBillingRepository implements BillingRepository {
                         plan_id = EXCLUDED.plan_id,
                         stripe_customer_id = EXCLUDED.stripe_customer_id,
                         stripe_price_id = EXCLUDED.stripe_price_id,
+                        stripe_base_item_id = EXCLUDED.stripe_base_item_id,
+                        stripe_extra_seat_item_id = EXCLUDED.stripe_extra_seat_item_id,
+                        included_users_snapshot = COALESCE(
+                            subscriptions.included_users_snapshot,
+                            EXCLUDED.included_users_snapshot
+                        ),
+                        additional_seats = EXCLUDED.additional_seats,
                         source = 'STRIPE',
                         status = EXCLUDED.status,
                         starts_at = EXCLUDED.starts_at,
@@ -482,6 +516,10 @@ export class PostgresBillingRepository implements BillingRepository {
                     stripeCustomerId: input.stripeCustomerId,
                     stripeSubscriptionId: input.stripeSubscriptionId,
                     stripePriceId: input.stripePriceId,
+                    stripeBaseItemId: input.stripeBaseItemId,
+                    stripeExtraSeatItemId: input.stripeExtraSeatItemId,
+                    includedUsersSnapshot: plan.includedUsers,
+                    additionalSeats: input.additionalSeats,
                     status: input.status,
                     startsAt: input.startsAt,
                     endsAt: input.endsAt,
@@ -699,7 +737,7 @@ export class PostgresBillingRepository implements BillingRepository {
                     plans.price_cents,
                     plans.currency,
                     plans.billing_interval,
-                    plans.max_users,
+                    plans.included_users,
                     plans.created_at,
                     COALESCE(
                         JSONB_AGG(
@@ -735,6 +773,10 @@ export class PostgresBillingRepository implements BillingRepository {
                 subscriptions.stripe_customer_id,
                 subscriptions.stripe_subscription_id,
                 subscriptions.stripe_price_id,
+                subscriptions.stripe_base_item_id,
+                subscriptions.stripe_extra_seat_item_id,
+                subscriptions.included_users_snapshot,
+                subscriptions.additional_seats,
                 subscriptions.source,
                 subscriptions.status,
                 subscriptions.starts_at,
@@ -750,7 +792,7 @@ export class PostgresBillingRepository implements BillingRepository {
                 plans.price_cents AS plan_price_cents,
                 plans.currency AS plan_currency,
                 plans.billing_interval AS plan_billing_interval,
-                plans.max_users AS plan_max_users,
+                plans.included_users AS plan_included_users,
                 plans.created_at AS plan_created_at,
                 COALESCE(
                     JSONB_AGG(
@@ -781,7 +823,7 @@ export class PostgresBillingRepository implements BillingRepository {
             priceCents: Number(row.price_cents),
             currency: row.currency,
             billingInterval: row.billing_interval,
-            maxUsers: Number(row.max_users),
+            includedUsers: Number(row.included_users),
             createdAt: new Date(row.created_at),
             features: row.features ?? [],
         }
@@ -794,6 +836,15 @@ export class PostgresBillingRepository implements BillingRepository {
             stripeCustomerId: row.stripe_customer_id,
             stripeSubscriptionId: row.stripe_subscription_id,
             stripePriceId: row.stripe_price_id,
+            stripeBaseItemId: row.stripe_base_item_id,
+            stripeExtraSeatItemId: row.stripe_extra_seat_item_id,
+            includedUsersSnapshot: Number(
+                row.included_users_snapshot ?? row.plan_included_users,
+            ),
+            additionalSeats: Number(row.additional_seats),
+            seatLimit:
+                Number(row.included_users_snapshot ?? row.plan_included_users) +
+                Number(row.additional_seats),
             source: row.source,
             status: row.status,
             startsAt: new Date(row.starts_at),
@@ -814,7 +865,7 @@ export class PostgresBillingRepository implements BillingRepository {
                 priceCents: Number(row.plan_price_cents),
                 currency: row.plan_currency,
                 billingInterval: row.plan_billing_interval,
-                maxUsers: Number(row.plan_max_users),
+                includedUsers: Number(row.plan_included_users),
                 createdAt: new Date(row.plan_created_at),
                 features: row.features ?? [],
             },

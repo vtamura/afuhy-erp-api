@@ -205,6 +205,9 @@ export class HandleStripeWebhookUseCase {
                 stripeCustomerId: snapshot.customerId,
                 stripeSubscriptionId: snapshot.id,
                 stripePriceId: snapshot.priceId,
+                stripeBaseItemId: snapshot.baseItemId,
+                stripeExtraSeatItemId: snapshot.extraSeatItemId,
+                additionalSeats: snapshot.additionalSeats,
                 status: this.mapStatus(snapshot.status),
                 startsAt: snapshot.startsAt,
                 endsAt: snapshot.endsAt,
@@ -236,6 +239,9 @@ export class HandleStripeWebhookUseCase {
                     stripeCustomerId: snapshot.customerId,
                     stripeSubscriptionId: snapshot.id,
                     stripePriceId: snapshot.priceId,
+                    stripeBaseItemId: snapshot.baseItemId,
+                    stripeExtraSeatItemId: snapshot.extraSeatItemId,
+                    additionalSeats: snapshot.additionalSeats,
                 },
             })
         })
