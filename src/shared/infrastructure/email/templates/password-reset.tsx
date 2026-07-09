@@ -11,7 +11,7 @@ export default function PasswordResetEmail(props: PasswordResetEmailProps) {
     return (
         <EmailLayout
             preview="Use o link para redefinir sua senha."
-            title="Redefinicao de senha"
+            title="Redefinição de senha"
         >
             <Text style={text}>
                 Olá, {props.name}. Recebemos uma solicitação para redefinir sua
@@ -23,7 +23,6 @@ export default function PasswordResetEmail(props: PasswordResetEmailProps) {
             <Text style={muted}>
                 Este link expira em {props.expiresAt.toLocaleString('pt-BR')}.
             </Text>
-            <Text style={muted}>{props.resetUrl}</Text>
         </EmailLayout>
     )
 }

@@ -13,7 +13,7 @@ export default function OrganizationInvitationEmail(
     return (
         <EmailLayout
             preview={`Você foi convidado para ${props.organizationName}.`}
-            title="Convite para organizacao"
+            title="Convite para organização"
         >
             <Text style={text}>
                 Você foi convidado para participar da organização{' '}
@@ -26,7 +26,6 @@ export default function OrganizationInvitationEmail(
                 Este convite expira em {props.expiresAt.toLocaleString('pt-BR')}
                 .
             </Text>
-            <Text style={muted}>{props.invitationUrl}</Text>
         </EmailLayout>
     )
 }
