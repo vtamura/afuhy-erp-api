@@ -11,7 +11,8 @@ const LOG_LEVEL_WEIGHT: Record<LogLevel, number> = {
 }
 
 type LoggerContext = Record<string, unknown>
-const DEFAULT_LOG_PATH = path.resolve(__dirname, '../../../../default.log')
+const LOGS_DIRECTORY = path.resolve(process.cwd(), 'logs')
+const CIRCULAR_REFERENCE_MARKER = '[Circular]'
 
 function parseLogLevel(value: string | undefined): LogLevel {
     if (!value) {
@@ -61,7 +62,7 @@ function write(level: LogLevel, message: string, context: LoggerContext): void {
         ...context,
     }
 
-    const serialized = JSON.stringify(payload)
+    const serialized = stringifyLogPayload(payload)
 
     if (level === 'error') {
         console.error(serialized)
@@ -71,29 +72,69 @@ function write(level: LogLevel, message: string, context: LoggerContext): void {
         console.log(serialized)
     }
 
-    if (shouldWriteToDefaultLog(level)) {
-        writeDefaultLogFile(serialized)
-    }
+    writeLogFile(level, payload.timestamp, serialized)
 }
 
-function shouldWriteToDefaultLog(level: LogLevel): boolean {
-    if (level === 'error') {
-        return true
-    }
-
-    return process.env.NODE_ENV === 'development'
-}
-
-function writeDefaultLogFile(serialized: string): void {
+function stringifyLogPayload(payload: Record<string, unknown>): string {
     try {
-        fs.appendFileSync(DEFAULT_LOG_PATH, `${serialized}\n`, 'utf8')
+        return JSON.stringify(payload, createJsonReplacer())
+    } catch (error) {
+        return JSON.stringify({
+            timestamp: new Date().toISOString(),
+            level: 'error',
+            message: 'logger.serialization_failed',
+            error: toErrorObject(error),
+        })
+    }
+}
+
+function createJsonReplacer(): (key: string, value: unknown) => unknown {
+    const seen = new WeakSet<object>()
+
+    return (_key, value) => {
+        if (value instanceof Error) {
+            return toErrorObject(value)
+        }
+
+        if (typeof value === 'bigint') {
+            return value.toString()
+        }
+
+        if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) {
+                return CIRCULAR_REFERENCE_MARKER
+            }
+
+            seen.add(value)
+        }
+
+        return value
+    }
+}
+
+function getLogFilePath(level: LogLevel, timestamp: string): string {
+    const logDate = timestamp.slice(0, 10)
+
+    return path.join(LOGS_DIRECTORY, logDate, `${level}.jsonl`)
+}
+
+function writeLogFile(
+    level: LogLevel,
+    timestamp: string,
+    serialized: string,
+): void {
+    const target = getLogFilePath(level, timestamp)
+
+    try {
+        fs.mkdirSync(path.dirname(target), { recursive: true })
+        fs.appendFileSync(target, `${serialized}\n`, 'utf8')
     } catch (error) {
         console.error(
             JSON.stringify({
                 timestamp: new Date().toISOString(),
                 level: 'error',
                 message: 'logger.file_write_failed',
-                target: DEFAULT_LOG_PATH,
+                target,
                 error: toErrorObject(error),
             }),
         )

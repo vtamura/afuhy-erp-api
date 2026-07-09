@@ -9,3 +9,4 @@ coverage
 !.env.example
 /docs
 default.log
+logs/
