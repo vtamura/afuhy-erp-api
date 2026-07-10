@@ -1,6 +1,6 @@
 {
     "name": "afuhy-api",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "main": "dist/main/bootstrap/server.js",
     "scripts": {
         "dev": "cross-env NODE_ENV=development tsx watch src/main/bootstrap/server.ts",
