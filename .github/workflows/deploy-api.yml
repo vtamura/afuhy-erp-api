@@ -1,0 +1,353 @@
+name: Deploy API
+
+on:
+    workflow_call:
+        inputs:
+            deployment-environment:
+                description: GitHub Environment and deployment target
+                required: true
+                type: string
+            environment-url:
+                description: Public URL shown in the GitHub deployment
+                required: true
+                type: string
+permissions:
+    contents: read
+
+jobs:
+    prepare:
+        name: Prepare release metadata
+        runs-on: ubuntu-latest
+        outputs:
+            archive-name: ${{ steps.metadata.outputs.archive-name }}
+            artifact-name: ${{ steps.metadata.outputs.artifact-name }}
+            release-name: ${{ steps.metadata.outputs.release-name }}
+
+        steps:
+            - name: Validate tag and define release
+              id: metadata
+              env:
+                  DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment-environment }}
+              run: |
+                  set -Eeuo pipefail
+
+                  case "$DEPLOYMENT_ENVIRONMENT" in
+                    staging)
+                      if [[ ! "$GITHUB_REF_NAME" =~ ^hml/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                        echo "Invalid staging tag: $GITHUB_REF_NAME" >&2
+                        exit 1
+                      fi
+
+                      release_name="$GITHUB_SHA"
+                      ;;
+                    production)
+                      if [[ ! "$GITHUB_REF_NAME" =~ ^prd/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                        echo "Invalid production tag: $GITHUB_REF_NAME" >&2
+                        exit 1
+                      fi
+
+                      release_name="${GITHUB_REF_NAME#prd/}"
+                      ;;
+                    *)
+                      echo "Invalid deployment environment: $DEPLOYMENT_ENVIRONMENT" >&2
+                      exit 1
+                      ;;
+                  esac
+
+                  artifact_name="api-${DEPLOYMENT_ENVIRONMENT}-${release_name}"
+                  archive_name="${artifact_name}.tar.gz"
+
+                  echo "release-name=$release_name" >> "$GITHUB_OUTPUT"
+                  echo "artifact-name=$artifact_name" >> "$GITHUB_OUTPUT"
+                  echo "archive-name=$archive_name" >> "$GITHUB_OUTPUT"
+
+    validate:
+        name: Validate and build
+        needs: prepare
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout tagged commit
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.ref }}
+                  persist-credentials: false
+
+            - name: Configure Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Run lint
+              run: npm run lint
+
+            - name: Run tests
+              run: npm test
+
+            - name: Build
+              run: npm run build
+
+            - name: Validate runtime files
+              run: |
+                  set -Eeuo pipefail
+
+                  test -f dist/main/bootstrap/server.js
+                  test -f dist/sequelize.config.cjs
+                  test -d dist/database/migrations
+
+            - name: Create deployment archive
+              env:
+                  ARCHIVE_NAME: ${{ needs.prepare.outputs.archive-name }}
+              run: |
+                  set -Eeuo pipefail
+
+                  artifact_directory="$RUNNER_TEMP/api-artifact"
+                  mkdir -p "$artifact_directory"
+
+                  cp -R dist "$artifact_directory/dist"
+                  cp package.json "$artifact_directory/package.json"
+                  cp package-lock.json "$artifact_directory/package-lock.json"
+
+                  tar -czf "$ARCHIVE_NAME" -C "$artifact_directory" .
+
+            - name: Upload workflow artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ${{ needs.prepare.outputs.artifact-name }}
+                  path: ${{ needs.prepare.outputs.archive-name }}
+                  if-no-files-found: error
+                  retention-days: 30
+
+    deploy:
+        name: Deploy ${{ inputs.deployment-environment }}
+        needs:
+            - prepare
+            - validate
+        runs-on: ubuntu-latest
+        environment:
+            name: ${{ inputs.deployment-environment }}
+            url: ${{ inputs.environment-url }}
+
+        steps:
+            - name: Download workflow artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: ${{ needs.prepare.outputs.artifact-name }}
+
+            - name: Configure SSH
+              env:
+                  SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+                  SSH_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+              run: |
+                  set -Eeuo pipefail
+
+                  test -n "$SSH_PRIVATE_KEY"
+                  test -n "$SSH_KNOWN_HOSTS"
+
+                  install -m 700 -d ~/.ssh
+                  printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+                  printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+                  chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+            - name: Upload release archive
+              env:
+                  ARCHIVE_NAME: ${{ needs.prepare.outputs.archive-name }}
+                  SERVER_HOST: ${{ secrets.SERVER_HOST }}
+                  SERVER_PORT: ${{ secrets.SERVER_PORT }}
+                  SERVER_USER: ${{ secrets.SERVER_USER }}
+              run: |
+                  set -Eeuo pipefail
+
+                  scp \
+                    -o BatchMode=yes \
+                    -o IdentitiesOnly=yes \
+                    -P "$SERVER_PORT" \
+                    "$ARCHIVE_NAME" \
+                    "${SERVER_USER}@${SERVER_HOST}:/tmp/${ARCHIVE_NAME}"
+
+            - name: Activate release
+              env:
+                  ARCHIVE_NAME: ${{ needs.prepare.outputs.archive-name }}
+                  DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment-environment }}
+                  RELEASE_NAME: ${{ needs.prepare.outputs.release-name }}
+                  SERVER_HOST: ${{ secrets.SERVER_HOST }}
+                  SERVER_PORT: ${{ secrets.SERVER_PORT }}
+                  SERVER_USER: ${{ secrets.SERVER_USER }}
+              run: |
+                  set -Eeuo pipefail
+
+                  printf -v remote_command \
+                    'bash -s -- %q %q %q' \
+                    "$DEPLOYMENT_ENVIRONMENT" \
+                    "$RELEASE_NAME" \
+                    "$ARCHIVE_NAME"
+
+                  ssh \
+                    -o BatchMode=yes \
+                    -o IdentitiesOnly=yes \
+                    -p "$SERVER_PORT" \
+                    "${SERVER_USER}@${SERVER_HOST}" \
+                    "$remote_command" <<'REMOTE'
+                      set -Eeuo pipefail
+
+                      DEPLOYMENT_ENVIRONMENT="$1"
+                      RELEASE_NAME="$2"
+                      ARCHIVE_NAME="$3"
+
+                      case "$DEPLOYMENT_ENVIRONMENT" in
+                        staging)
+                          APP_ROOT="/opt/apps/api.hml.erp.afuhy.com.br"
+                          PROCESS_NAME="api.hml.erp.afuhy.com.br"
+                          HEALTH_URL="http://127.0.0.1:3100/health"
+
+                          [[ "$RELEASE_NAME" =~ ^[0-9a-f]{40}$ ]]
+                          ;;
+                        production)
+                          APP_ROOT="/opt/apps/api.erp.afuhy.com.br"
+                          PROCESS_NAME="api.erp.afuhy.com.br"
+                          HEALTH_URL="http://127.0.0.1:3000/health"
+
+                          [[ "$RELEASE_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+                          ;;
+                        *)
+                          echo "Invalid deployment environment: $DEPLOYMENT_ENVIRONMENT" >&2
+                          exit 1
+                          ;;
+                      esac
+
+                      RELEASES_DIR="${APP_ROOT}/releases"
+                      RELEASE_DIR="${RELEASES_DIR}/${RELEASE_NAME}"
+                      ARCHIVE="/tmp/${ARCHIVE_NAME}"
+                      PREVIOUS_RELEASE=""
+                      RELEASE_CREATED=false
+                      RELEASE_ACTIVATED=false
+
+                      rollback() {
+                        exit_code=$?
+                        trap - ERR
+                        set +e
+
+                        echo "Deployment failed; restoring the previous release" >&2
+
+                        if [[ "$RELEASE_ACTIVATED" == true ]]; then
+                          if [[ -n "$PREVIOUS_RELEASE" && -d "$PREVIOUS_RELEASE" ]]; then
+                            ln -sfn "$PREVIOUS_RELEASE" "${APP_ROOT}/current.rollback"
+                            mv -Tf "${APP_ROOT}/current.rollback" "${APP_ROOT}/current"
+
+                            cd "$APP_ROOT"
+                            pm2 reload ecosystem.config.cjs \
+                              --only "$PROCESS_NAME" \
+                              --update-env || true
+                          else
+                            rm -f "${APP_ROOT}/current"
+                            pm2 delete "$PROCESS_NAME" || true
+                          fi
+                        fi
+
+                        if [[ "$RELEASE_CREATED" == true ]]; then
+                          rm -rf -- "$RELEASE_DIR"
+                        fi
+
+                        rm -f -- "$ARCHIVE"
+                        exit "$exit_code"
+                      }
+
+                      trap rollback ERR
+
+                      test -f "$ARCHIVE"
+                      test -f "${APP_ROOT}/shared/.env"
+                      test -f "${APP_ROOT}/ecosystem.config.cjs"
+                      test ! -e "$RELEASE_DIR"
+
+                      mkdir -p "$RELEASES_DIR" "$RELEASE_DIR"
+                      RELEASE_CREATED=true
+
+                      tar -xzf "$ARCHIVE" -C "$RELEASE_DIR"
+                      ln -s "${APP_ROOT}/shared/.env" "${RELEASE_DIR}/.env"
+
+                      test -L "${RELEASE_DIR}/.env"
+                      test -f "${RELEASE_DIR}/dist/main/bootstrap/server.js"
+                      test -f "${RELEASE_DIR}/dist/sequelize.config.cjs"
+                      test -d "${RELEASE_DIR}/dist/database/migrations"
+
+                      export NVM_DIR="$HOME/.nvm"
+                      test -s "$NVM_DIR/nvm.sh"
+                      . "$NVM_DIR/nvm.sh"
+                      nvm use 24
+
+                      cd "$RELEASE_DIR"
+                      npm ci --omit=dev --no-audit --no-fund
+                      npm run migration:run
+
+                      PREVIOUS_RELEASE="$(readlink -f "${APP_ROOT}/current" || true)"
+
+                      ln -sfn "$RELEASE_DIR" "${APP_ROOT}/current.new"
+                      mv -Tf "${APP_ROOT}/current.new" "${APP_ROOT}/current"
+                      RELEASE_ACTIVATED=true
+
+                      cd "$APP_ROOT"
+
+                      if pm2 describe "$PROCESS_NAME" >/dev/null 2>&1; then
+                        pm2 reload ecosystem.config.cjs \
+                          --only "$PROCESS_NAME" \
+                          --update-env
+                      else
+                        pm2 start ecosystem.config.cjs --only "$PROCESS_NAME"
+                      fi
+
+                      healthy=false
+
+                      for attempt in {1..10}; do
+                        if curl \
+                          --fail \
+                          --silent \
+                          --show-error \
+                          --max-time 10 \
+                          "$HEALTH_URL" \
+                          >/dev/null; then
+                          healthy=true
+                          break
+                        fi
+
+                        echo "Health check attempt ${attempt}/10 failed" >&2
+                        sleep 3
+                      done
+
+                      if [[ "$healthy" != true ]]; then
+                        echo "Health check failed: $HEALTH_URL" >&2
+                        false
+                      fi
+
+                      pm2 save
+                      rm -f -- "$ARCHIVE"
+                      trap - ERR
+
+                      CURRENT_RELEASE="$(readlink -f "${APP_ROOT}/current")"
+                      kept_previous=0
+                      mapfile -t release_directories < <(
+                        find "$RELEASES_DIR" \
+                          -mindepth 1 \
+                          -maxdepth 1 \
+                          -type d \
+                          -printf '%T@ %p\n' \
+                          | sort -nr \
+                          | cut -d' ' -f2-
+                      )
+
+                      for release_directory in "${release_directories[@]}"; do
+                        if [[ "$release_directory" == "$CURRENT_RELEASE" ]]; then
+                          continue
+                        fi
+
+                        if (( kept_previous < 4 )); then
+                          ((kept_previous += 1))
+                          continue
+                        fi
+
+                        rm -rf -- "$release_directory"
+                      done
+                  REMOTE

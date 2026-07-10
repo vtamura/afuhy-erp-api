@@ -1,0 +1,22 @@
+name: Deploy API Staging
+
+on:
+    push:
+        tags:
+            - 'hml/v*'
+
+permissions:
+    contents: read
+
+concurrency:
+    group: api-staging
+    cancel-in-progress: false
+
+jobs:
+    deploy:
+        name: Validate, build and deploy staging
+        uses: ./.github/workflows/deploy-api.yml
+        with:
+            deployment-environment: staging
+            environment-url: https://api.hml.erp.afuhy.com.br
+        secrets: inherit

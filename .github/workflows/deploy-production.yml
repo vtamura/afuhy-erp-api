@@ -1,0 +1,22 @@
+name: Deploy API Production
+
+on:
+    push:
+        tags:
+            - 'prd/v*'
+
+permissions:
+    contents: read
+
+concurrency:
+    group: api-production
+    cancel-in-progress: false
+
+jobs:
+    deploy:
+        name: Validate, build and deploy production
+        uses: ./.github/workflows/deploy-api.yml
+        with:
+            deployment-environment: production
+            environment-url: https://api.erp.afuhy.com.br
+        secrets: inherit
