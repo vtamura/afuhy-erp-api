@@ -18,5 +18,5 @@ jobs:
         uses: ./.github/workflows/deploy-api.yml
         with:
             deployment-environment: staging
-            environment-url: https://api.hml.erp.afuhy.com.br
+            environment-url: https://api-erp-hml.afuhy.com.br
         secrets: inherit

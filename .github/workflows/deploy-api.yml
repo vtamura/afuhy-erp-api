@@ -201,7 +201,7 @@ jobs:
                       case "$DEPLOYMENT_ENVIRONMENT" in
                         staging)
                           APP_ROOT="/opt/apps/api-erp-hml.afuhy.com.br"
-                          PROCESS_NAME="api.hml.erp.afuhy.com.br"
+                          PROCESS_NAME="api-erp-hml.afuhy.com.br"
                           HEALTH_URL="http://127.0.0.1:3100/health"
 
                           [[ "$RELEASE_NAME" =~ ^[0-9a-f]{40}$ ]]
