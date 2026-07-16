@@ -5,7 +5,10 @@ import {
     serializeError,
 } from '../../shared/infrastructure/logger/logger'
 import { createEmailJobProcessor } from '../../shared/infrastructure/email/email-job.processor'
-import { createBullMqConnectionOptions } from '../../shared/infrastructure/email/bullmq-connection'
+import {
+    createBullMqWorkerConnectionOptions,
+    getRedisConnectionMetadata,
+} from '../../shared/infrastructure/email/bullmq-connection'
 import type { EmailJobData } from '../../shared/infrastructure/email/email-job'
 
 const logger = createLogger({ component: 'email.worker' })
@@ -22,7 +25,8 @@ const worker = new Worker<EmailJobData, void, string>(
     env.EMAIL_QUEUE_NAME,
     createEmailJobProcessor(undefined, logger),
     {
-        connection: createBullMqConnectionOptions(),
+        connection: createBullMqWorkerConnectionOptions(),
+        prefix: env.BULLMQ_PREFIX,
         concurrency: env.EMAIL_WORKER_CONCURRENCY,
     },
 )
@@ -30,6 +34,7 @@ const worker = new Worker<EmailJobData, void, string>(
 worker.on('ready', () => {
     logger.info('email.worker.ready', {
         queueName: env.EMAIL_QUEUE_NAME,
+        prefix: env.BULLMQ_PREFIX,
         concurrency: env.EMAIL_WORKER_CONCURRENCY,
     })
 })
@@ -45,7 +50,7 @@ worker.on('failed', (job, error) => {
 
 worker.on('error', (error) => {
     logger.error('email.worker.redis_error', {
-        redisUrl: env.REDIS_URL,
+        ...getRedisConnectionMetadata(),
         error: serializeError(error),
     })
 })

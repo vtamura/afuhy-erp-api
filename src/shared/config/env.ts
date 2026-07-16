@@ -63,6 +63,7 @@ const envSchema = z.object({
     STRIPE_PORTAL_RETURN_URL: z.url().default('http://localhost:3000'),
     EMAIL_QUEUE_DRIVER: z.enum(['log', 'bullmq']).default('log'),
     REDIS_URL: z.string().default('redis://localhost:6379'),
+    BULLMQ_PREFIX: z.string().min(1).default('bull'),
     EMAIL_QUEUE_NAME: z.string().default('emails'),
     EMAIL_WORKER_CONCURRENCY: z.coerce.number().int().positive().default(5),
     EMAIL_JOB_ATTEMPTS: z.coerce.number().int().positive().default(5),

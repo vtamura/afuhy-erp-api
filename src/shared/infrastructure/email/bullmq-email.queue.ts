@@ -5,7 +5,10 @@ import type {
 } from '../../application/ports/email-queue.port'
 import { env } from '../../config/env'
 import { createLogger, serializeError, type Logger } from '../logger/logger'
-import { createBullMqConnectionOptions } from './bullmq-connection'
+import {
+    createBullMqProducerConnectionOptions,
+    getRedisConnectionMetadata,
+} from './bullmq-connection'
 import type { EmailJobData } from './email-job'
 
 export class BullMqEmailQueue implements EmailQueuePort {
@@ -17,14 +20,15 @@ export class BullMqEmailQueue implements EmailQueuePort {
         this.queue = new Queue<EmailJobData, void, string>(
             env.EMAIL_QUEUE_NAME,
             {
-                connection: createBullMqConnectionOptions(),
+                connection: createBullMqProducerConnectionOptions(),
+                prefix: env.BULLMQ_PREFIX,
                 defaultJobOptions: this.getDefaultJobOptions(),
             },
         )
         this.queue.on('error', (error) => {
             this.logger.error('email.queue.redis_error', {
                 queueName: env.EMAIL_QUEUE_NAME,
-                redisUrl: env.REDIS_URL,
+                ...getRedisConnectionMetadata(),
                 error: serializeError(error),
             })
         })
