@@ -200,15 +200,15 @@ jobs:
 
                       case "$DEPLOYMENT_ENVIRONMENT" in
                         staging)
-                          APP_ROOT="/opt/apps/api.hml.erp.afuhy.com.br"
+                          APP_ROOT="/opt/apps/api-erp-hml.afuhy.com.br"
                           PROCESS_NAME="api.hml.erp.afuhy.com.br"
                           HEALTH_URL="http://127.0.0.1:3100/health"
 
                           [[ "$RELEASE_NAME" =~ ^[0-9a-f]{40}$ ]]
                           ;;
                         production)
-                          APP_ROOT="/opt/apps/api.erp.afuhy.com.br"
-                          PROCESS_NAME="api.erp.afuhy.com.br"
+                          APP_ROOT="/opt/apps/api-erp.afuhy.com.br"
+                          PROCESS_NAME="api-erp.afuhy.com.br"
                           HEALTH_URL="http://127.0.0.1:3000/health"
 
                           [[ "$RELEASE_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
