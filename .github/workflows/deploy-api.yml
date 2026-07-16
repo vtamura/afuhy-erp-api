@@ -202,14 +202,14 @@ jobs:
                         staging)
                           APP_ROOT="/opt/apps/api-erp-hml.afuhy.com.br"
                           PROCESS_NAME="api-erp-hml.afuhy.com.br"
-                          HEALTH_URL="http://127.0.0.1:3100/health"
+                          HEALTH_URL="http://127.0.0.1:3100/api/health"
 
                           [[ "$RELEASE_NAME" =~ ^[0-9a-f]{40}$ ]]
                           ;;
                         production)
                           APP_ROOT="/opt/apps/api-erp.afuhy.com.br"
                           PROCESS_NAME="api-erp.afuhy.com.br"
-                          HEALTH_URL="http://127.0.0.1:3000/health"
+                          HEALTH_URL="http://127.0.0.1:3000/api/health"
 
                           [[ "$RELEASE_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
                           ;;
