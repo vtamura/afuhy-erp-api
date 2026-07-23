@@ -1,4 +1,6 @@
 import { Button, Text } from '@react-email/components'
+import { env } from '../../../config/env'
+import { buildEmailTokenUrl } from '../email-url'
 import { button, EmailLayout, muted, text } from './_components/email-layout'
 
 export type OrganizationInvitationEmailProps = {
@@ -32,7 +34,9 @@ export default function OrganizationInvitationEmail(
 
 OrganizationInvitationEmail.PreviewProps = {
     organizationName: 'Afuhy Tecnologia',
-    invitationUrl:
-        'http://localhost:3000/invitations/accept?token=preview-token',
+    invitationUrl: buildEmailTokenUrl(
+        env.INVITATION_ACCEPT_PATH,
+        'preview-token',
+    ),
     expiresAt: new Date('2026-01-08T00:00:00.000Z'),
 } satisfies OrganizationInvitationEmailProps

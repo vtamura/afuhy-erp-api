@@ -1,4 +1,6 @@
 import { Button, Text } from '@react-email/components'
+import { env } from '../../../config/env'
+import { buildEmailTokenUrl } from '../email-url'
 import { button, EmailLayout, muted, text } from './_components/email-layout'
 
 export type PasswordResetEmailProps = {
@@ -29,6 +31,6 @@ export default function PasswordResetEmail(props: PasswordResetEmailProps) {
 
 PasswordResetEmail.PreviewProps = {
     name: 'Maria Silva',
-    resetUrl: 'http://localhost:3000/reset-password?token=preview-token',
+    resetUrl: buildEmailTokenUrl(env.PASSWORD_RESET_PATH, 'preview-token'),
     expiresAt: new Date('2026-01-01T00:30:00.000Z'),
 } satisfies PasswordResetEmailProps
