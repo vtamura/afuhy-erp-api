@@ -6,6 +6,7 @@ import { createInterface } from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
 
 const environment = process.argv[2]
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const semverPattern = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 const packageVersionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 
@@ -154,7 +155,7 @@ async function createHomologationRelease() {
         fail(`a tag ${tag} já existe.`)
     }
 
-    execFileSync('npm', ['version', version, '--no-git-tag-version'], {
+    execFileSync(npmCommand, ['version', version, '--no-git-tag-version'], {
         stdio: 'inherit',
     })
 
