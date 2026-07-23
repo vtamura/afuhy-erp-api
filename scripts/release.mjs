@@ -6,7 +6,6 @@ import { createInterface } from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
 
 const environment = process.argv[2]
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const semverPattern = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 const packageVersionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 
@@ -22,6 +21,27 @@ function git(args, options = {}) {
     })
 
     return typeof output === 'string' ? output.trim() : ''
+}
+
+function npm(args) {
+    const npmExecPath = process.env.npm_execpath
+
+    if (npmExecPath) {
+        execFileSync(process.execPath, [npmExecPath, ...args], {
+            stdio: 'inherit',
+        })
+        return
+    }
+
+    const command = process.platform === 'win32' ? 'cmd.exe' : 'npm'
+    const commandArgs =
+        process.platform === 'win32'
+            ? ['/d', '/s', '/c', 'npm.cmd', ...args]
+            : args
+
+    execFileSync(command, commandArgs, {
+        stdio: 'inherit',
+    })
 }
 
 function tagExists(tag) {
@@ -155,9 +175,7 @@ async function createHomologationRelease() {
         fail(`a tag ${tag} já existe.`)
     }
 
-    execFileSync(npmCommand, ['version', version, '--no-git-tag-version'], {
-        stdio: 'inherit',
-    })
+    npm(['version', version, '--no-git-tag-version'])
 
     if (!semverPattern.test(versionName)) {
         fail(`a versão gerada não é SemVer válida: ${versionName}.`)
